@@ -122,22 +122,32 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           }
         },
         child: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: EdgeInsets.all(AppConstants.largePadding.w),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildHeader(),
-                      SizedBox(height: 48.h),
-                      _buildOTPForm(),
-                    ],
-                  ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).padding.top -
+                    MediaQuery.of(context).padding.bottom -
+                    (AppConstants.largePadding.w * 2),
+              ),
+              child: IntrinsicHeight(
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildHeader(),
+                          SizedBox(height: 48.h),
+                          _buildOTPForm(),
+                        ],
+                      ),
+                    ),
+                    _buildFooter(),
+                  ],
                 ),
-                _buildFooter(),
-              ],
+              ),
             ),
           ),
         ),

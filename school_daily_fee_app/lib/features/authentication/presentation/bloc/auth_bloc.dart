@@ -47,13 +47,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLoginRequested event,
     Emitter<AuthState> emit,
   ) async {
+    print(
+        '_onAuthLoginRequested called with phone: ${event.phoneNumber}'); // Debug log
     try {
       emit(const AuthLoading());
+      print('AuthLoading emitted'); // Debug log
 
       await authRepository.requestOTP(event.phoneNumber);
+      print('OTP request completed successfully'); // Debug log
 
       emit(AuthOTPSent(phoneNumber: event.phoneNumber));
+      print('AuthOTPSent emitted'); // Debug log
     } catch (e) {
+      print('Error in _onAuthLoginRequested: $e'); // Debug log
       emit(AuthError(message: e.toString()));
     }
   }

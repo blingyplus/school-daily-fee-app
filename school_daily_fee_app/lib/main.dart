@@ -17,14 +17,14 @@ import 'features/authentication/presentation/pages/dashboard_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize dependency injection
   await configureDependencies();
-  
+
   // Initialize theme provider
   final themeProvider = ThemeProvider();
   await themeProvider.initialize(GetIt.instance<SharedPreferences>());
-  
+
   runApp(MyApp(themeProvider: themeProvider));
 }
 
@@ -38,8 +38,8 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>(
-          create: (context) => GetIt.instance<AuthBloc>()
-            ..add(const AuthCheckRequested()),
+          create: (context) =>
+              GetIt.instance<AuthBloc>()..add(const AuthCheckRequested()),
         ),
       ],
       child: AnimatedBuilder(
@@ -58,20 +58,31 @@ class MyApp extends StatelessWidget {
                 themeMode: themeProvider.themeMode,
                 navigatorKey: NavigationService.navigatorKey,
                 onGenerateRoute: AppRouter.generateRoute,
-                home: BlocBuilder<AuthBloc, AuthState>(
-                  builder: (context, state) {
-                    if (state is AuthLoading) {
-                      return const Scaffold(
-                        body: Center(
-                          child: CircularProgressIndicator(),
-                        ),
+                home: BlocListener<AuthBloc, AuthState>(
+                  listener: (context, state) {
+                    if (state is AuthOTPSent) {
+                      Navigator.pushNamed(
+                        context,
+                        AppRouter.otpVerification,
+                        arguments: {'phoneNumber': state.phoneNumber},
                       );
-                    } else if (state is AuthAuthenticated) {
-                      return const DashboardPage();
-                    } else {
-                      return const LoginPage();
                     }
                   },
+                  child: BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      if (state is AuthLoading) {
+                        return const Scaffold(
+                          body: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      } else if (state is AuthAuthenticated) {
+                        return const DashboardPage();
+                      } else {
+                        return const LoginPage();
+                      }
+                    },
+                  ),
                 ),
               );
             },

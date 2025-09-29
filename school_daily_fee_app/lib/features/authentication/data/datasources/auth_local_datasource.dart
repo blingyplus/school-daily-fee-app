@@ -49,10 +49,36 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
   @override
   Future<void> saveUser(UserModel user) async {
     try {
+      print('Attempting to save user: ${user.toJson()}'); // Debug log
+
+      // Check if table exists
+      final tables = await database.rawQuery(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='${DatabaseHelper.tableUsers}'");
+      print('Tables found: $tables'); // Debug log
+
+      if (tables.isEmpty) {
+        print('Users table does not exist, creating it...'); // Debug log
+        // Create the table if it doesn't exist
+        await database.execute(
+            '''
+          CREATE TABLE IF NOT EXISTS ${DatabaseHelper.tableUsers} (
+            id TEXT PRIMARY KEY,
+            phoneNumber TEXT UNIQUE NOT NULL,
+            otpHash TEXT,
+            otp_expires_at TEXT,
+            last_login TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+          )
+        ''');
+        print('Users table created successfully'); // Debug log
+      }
+
       // First, deactivate all existing users
       await database.update(
         DatabaseHelper.tableUsers,
-        {'is_active': 0, 'updated_at': DateTime.now().millisecondsSinceEpoch},
+        {'is_active': 0, 'updated_at': DateTime.now().toIso8601String()},
         where: 'is_active = ?',
         whereArgs: [1],
       );
@@ -63,6 +89,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
         user.toJson(),
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
+      print('User saved successfully'); // Debug log
     } catch (e) {
       print('Error saving user: $e');
       throw Exception('Failed to save user data');

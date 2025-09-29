@@ -19,10 +19,14 @@ class MockAuthService {
 
   /// Mock OTP request
   Future<Map<String, dynamic>> requestOTP(String phoneNumber) async {
+    print(
+        'MockAuthService.requestOTP called with phone: $phoneNumber'); // Debug log
     await _simulateDelay();
 
     // Simulate different responses based on phone number
     if (phoneNumber.contains('999')) {
+      print(
+          'Phone number contains 999, returning invalid phone error'); // Debug log
       return {
         'success': false,
         'message': 'Invalid phone number format',
@@ -31,6 +35,8 @@ class MockAuthService {
     }
 
     if (phoneNumber.contains('000')) {
+      print(
+          'Phone number contains 000, returning rate limit error'); // Debug log
       return {
         'success': false,
         'message': 'Too many requests. Please try again later.',
@@ -38,19 +44,19 @@ class MockAuthService {
       };
     }
 
+    print('Phone number is valid, returning success response'); // Debug log
+    final now = DateTime.now();
     return {
       'success': true,
       'message': 'OTP sent successfully',
       'data': {
-        'id': 'user_${DateTime.now().millisecondsSinceEpoch}',
-        'phone_number': phoneNumber,
-        'otp_hash': 'mock_hash_${_random.nextInt(9999)}',
-        'otp_expires_at': DateTime.now()
-            .add(const Duration(minutes: 5))
-            .millisecondsSinceEpoch,
+        'id': 'user_${now.millisecondsSinceEpoch}',
+        'phoneNumber': phoneNumber,
+        'otpHash': 'mock_hash_${_random.nextInt(9999)}',
+        'otp_expires_at': now.add(const Duration(minutes: 5)).toIso8601String(),
         'is_active': true,
-        'created_at': DateTime.now().millisecondsSinceEpoch,
-        'updated_at': DateTime.now().millisecondsSinceEpoch,
+        'created_at': now.toIso8601String(),
+        'updated_at': now.toIso8601String(),
       }
     };
   }
@@ -79,20 +85,19 @@ class MockAuthService {
     // Mock successful verification
     final mockData = await _mockDataProvider.getAuthMockData();
     final userData = mockData['users']?[0] ?? {};
+    final now = DateTime.now();
 
     return {
       'success': true,
       'message': 'Login successful',
       'data': {
         'user': {
-          'id':
-              userData['id'] ?? 'user_${DateTime.now().millisecondsSinceEpoch}',
-          'phone_number': phoneNumber,
+          'id': userData['id'] ?? 'user_${now.millisecondsSinceEpoch}',
+          'phoneNumber': phoneNumber,
           'is_active': true,
-          'last_login': DateTime.now().millisecondsSinceEpoch,
-          'created_at':
-              userData['created_at'] ?? DateTime.now().millisecondsSinceEpoch,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
+          'last_login': now.toIso8601String(),
+          'created_at': userData['created_at'] ?? now.toIso8601String(),
+          'updated_at': now.toIso8601String(),
         },
         'access_token': 'mock_access_token_${_random.nextInt(999999)}',
         'refresh_token': 'mock_refresh_token_${_random.nextInt(999999)}',
@@ -113,17 +118,18 @@ class MockAuthService {
       };
     }
 
+    final now = DateTime.now();
     return {
       'success': true,
       'message': 'Token refreshed successfully',
       'data': {
         'user': {
-          'id': 'user_${DateTime.now().millisecondsSinceEpoch}',
-          'phone_number': '+233123456789',
+          'id': 'user_${now.millisecondsSinceEpoch}',
+          'phoneNumber': '+233123456789',
           'is_active': true,
-          'last_login': DateTime.now().millisecondsSinceEpoch,
-          'created_at': DateTime.now().millisecondsSinceEpoch,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
+          'last_login': now.toIso8601String(),
+          'created_at': now.toIso8601String(),
+          'updated_at': now.toIso8601String(),
         },
         'access_token': 'new_mock_access_token_${_random.nextInt(999999)}',
         'refresh_token': 'new_mock_refresh_token_${_random.nextInt(999999)}',

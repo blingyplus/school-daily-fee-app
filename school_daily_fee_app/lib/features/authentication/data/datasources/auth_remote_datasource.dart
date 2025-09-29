@@ -25,14 +25,20 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<UserModel> requestOTP(OTPRequestModel request) async {
+    print(
+        'AuthRemoteDataSourceImpl.requestOTP called with phone: ${request.phoneNumber}'); // Debug log
     // Use mock service if enabled
     if (env.Environment.useMockData) {
+      print('Using mock service for OTP request'); // Debug log
       final mockResponse =
           await _mockAuthService.requestOTP(request.phoneNumber);
+      print('Mock response: $mockResponse'); // Debug log
 
       if (mockResponse['success'] == true) {
+        print('Mock response successful, creating UserModel'); // Debug log
         return UserModel.fromJson(mockResponse['data']);
       } else {
+        print('Mock response failed: ${mockResponse['message']}'); // Debug log
         throw Exception(mockResponse['message'] ?? 'Failed to request OTP');
       }
     }

@@ -24,6 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   final _phoneController = TextEditingController();
   bool _isLoading = false;
   String _countryCode = '+233'; // Ghana country code
+  String _lastEnteredPhone = ''; // Store last entered phone number
 
   @override
   void dispose() {
@@ -36,18 +37,12 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthOTPSent) {
+          print('Login page received state: $state'); // Debug log
+          if (state is AuthError) {
             setState(() {
               _isLoading = false;
-            });
-            Navigator.pushNamed(
-              context,
-              AppRouter.otpVerification,
-              arguments: {'phoneNumber': state.phoneNumber},
-            );
-          } else if (state is AuthError) {
-            setState(() {
-              _isLoading = false;
+              // Restore the phone number on error
+              _phoneController.text = _lastEnteredPhone;
             });
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -143,6 +138,7 @@ class _LoginPageState extends State<LoginPage> {
           IntlPhoneField(
             controller: _phoneController,
             initialCountryCode: 'GH', // Ghana
+            keyboardType: TextInputType.phone,
             decoration: InputDecoration(
               labelText: 'Phone Number',
               border: OutlineInputBorder(
@@ -211,11 +207,18 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _handleLogin() {
+    print('_handleLogin called'); // Debug log
     if (_formKey.currentState?.validate() ?? false) {
       final phoneNumber = '$_countryCode${_phoneController.text.trim()}';
+      _lastEnteredPhone =
+          _phoneController.text.trim(); // Store the phone number
+      print(
+          'Dispatching AuthLoginRequested with phone: $phoneNumber'); // Debug log
       context.read<AuthBloc>().add(
             AuthLoginRequested(phoneNumber: phoneNumber),
           );
+    } else {
+      print('Form validation failed'); // Debug log
     }
   }
 }

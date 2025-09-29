@@ -25,13 +25,18 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User> requestOTP(String phoneNumber) async {
+    print(
+        'AuthRepositoryImpl.requestOTP called with phone: $phoneNumber'); // Debug log
     // Check internet connectivity only if not using mock data
     if (!env.Environment.useMockData) {
+      print('Not using mock data, checking connectivity'); // Debug log
       final connectivityResult = await connectivity.checkConnectivity();
       if (connectivityResult == ConnectivityResult.none) {
         throw Exception(
             'No internet connection. Please check your network and try again.');
       }
+    } else {
+      print('Using mock data, skipping connectivity check'); // Debug log
     }
 
     try {
@@ -40,15 +45,19 @@ class AuthRepositoryImpl implements AuthRepository {
         deviceId: await _getDeviceId(),
         appVersion: '1.0.0',
       );
+      print('Created OTPRequestModel: ${request.toJson()}'); // Debug log
 
       final userModel = await remoteDataSource.requestOTP(request);
+      print('Received userModel from remoteDataSource'); // Debug log
       final user = userModel.toEntity();
 
       // Save user data locally
       await localDataSource.saveUser(userModel);
+      print('Saved user data locally'); // Debug log
 
       return user;
     } catch (e) {
+      print('Error in requestOTP: $e'); // Debug log
       throw Exception(e.toString());
     }
   }

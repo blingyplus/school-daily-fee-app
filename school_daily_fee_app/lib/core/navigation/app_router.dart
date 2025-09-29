@@ -25,6 +25,7 @@ class AppRouter {
 
       case otpVerification:
         final args = settings.arguments as Map<String, dynamic>?;
+        print('OTP route called with args: $args'); // Debug log
         return MaterialPageRoute(
           builder: (_) => OTPVerificationPage(
             phoneNumber: args?['phoneNumber'] ?? '',

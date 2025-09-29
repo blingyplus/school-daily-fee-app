@@ -7,6 +7,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 
 import '../constants/environment.dart' as env;
+import '../../shared/data/datasources/local/database_helper.dart';
 
 @module
 abstract class DIModule {
@@ -18,17 +19,8 @@ abstract class DIModule {
   @preResolve
   @singleton
   Future<Database> get database async {
-    final databasesPath = await getDatabasesPath();
-    final path = join(databasesPath, env.Environment.dbName);
-
-    return await openDatabase(
-      path,
-      version: env.Environment.dbVersion,
-      onCreate: (db, version) {
-        // Database tables will be created here
-        // We'll implement this in the next step
-      },
-    );
+    final databaseHelper = DatabaseHelper();
+    return await databaseHelper.database;
   }
 
   @singleton
@@ -37,18 +29,22 @@ abstract class DIModule {
   @singleton
   Dio get dio {
     final dio = Dio();
-    dio.options.baseUrl = env.Environment.apiBaseUrl;
-    dio.options.connectTimeout =
-        Duration(milliseconds: env.Environment.apiTimeout);
-    dio.options.receiveTimeout =
-        Duration(milliseconds: env.Environment.apiTimeout);
 
-    // Add interceptors for logging, authentication, etc.
-    dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      error: true,
-    ));
+    // Only set base URL if not using mock data
+    if (!env.Environment.useMockData) {
+      dio.options.baseUrl = env.Environment.apiBaseUrl;
+      dio.options.connectTimeout =
+          Duration(milliseconds: env.Environment.apiTimeout);
+      dio.options.receiveTimeout =
+          Duration(milliseconds: env.Environment.apiTimeout);
+
+      // Add interceptors for logging, authentication, etc.
+      dio.interceptors.add(LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        error: true,
+      ));
+    }
 
     return dio;
   }
