@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:school_daily_fee_app/main.dart';
-import 'package:school_daily_fee_app/core/theme/theme_provider.dart';
+import 'package:skuupay/main.dart';
+import 'package:skuupay/core/theme/theme_provider.dart';
 
 void main() {
   testWidgets('App loads without crashing', (WidgetTester tester) async {
@@ -25,6 +25,6 @@ void main() {
     await tester.pumpWidget(MyApp(themeProvider: themeProvider));
 
     // Verify that the app loads (look for login page or dashboard)
-    expect(find.text('School Daily Fee App'), findsOneWidget);
+    expect(find.text('Skuupay'), findsOneWidget);
   });
 }

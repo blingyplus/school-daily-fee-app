@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
-project(school_daily_fee_app LANGUAGES CXX)
+project(skuupay LANGUAGES CXX)
 
-set(BINARY_NAME "school_daily_fee_app")
+set(BINARY_NAME "skuupay")
 
 cmake_policy(SET CMP0063 NEW)
 

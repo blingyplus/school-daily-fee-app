@@ -1,6 +1,6 @@
-# school_daily_fee_app
+# Skuupay
 
-A new Flutter project.
+A superfast mobile app to allow schools to manage canteen and bus fees collections easily.
 
 ## Getting Started
 

@@ -1,4 +1,4 @@
-package com.schoolmanagement.school_daily_fee_app
+package com.fusionedgeorg.skuupay
 
 import io.flutter.embedding.android.FlutterActivity
 

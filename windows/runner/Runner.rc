@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.schoolmanagement" "\0"
-            VALUE "FileDescription", "school_daily_fee_app" "\0"
+            VALUE "CompanyName", "com.fusionedgeorg" "\0"
+            VALUE "FileDescription", "Skuupay" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "school_daily_fee_app" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.schoolmanagement. All rights reserved." "\0"
-            VALUE "OriginalFilename", "school_daily_fee_app.exe" "\0"
-            VALUE "ProductName", "school_daily_fee_app" "\0"
+            VALUE "InternalName", "skuupay" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.fusionedgeorg. All rights reserved." "\0"
+            VALUE "OriginalFilename", "skuupay.exe" "\0"
+            VALUE "ProductName", "Skuupay" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

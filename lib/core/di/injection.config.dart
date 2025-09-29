@@ -12,16 +12,16 @@ import 'package:connectivity_plus/connectivity_plus.dart' as _i3;
 import 'package:dio/dio.dart' as _i5;
 import 'package:get_it/get_it.dart' as _i1;
 import 'package:injectable/injectable.dart' as _i2;
-import 'package:school_daily_fee_app/core/di/di_module.dart' as _i12;
-import 'package:school_daily_fee_app/features/authentication/data/datasources/auth_local_datasource.dart'
+import 'package:skuupay/core/di/di_module.dart' as _i12;
+import 'package:skuupay/features/authentication/data/datasources/auth_local_datasource.dart'
     as _i7;
-import 'package:school_daily_fee_app/features/authentication/data/datasources/auth_remote_datasource.dart'
+import 'package:skuupay/features/authentication/data/datasources/auth_remote_datasource.dart'
     as _i8;
-import 'package:school_daily_fee_app/features/authentication/data/repositories/auth_repository_impl.dart'
+import 'package:skuupay/features/authentication/data/repositories/auth_repository_impl.dart'
     as _i10;
-import 'package:school_daily_fee_app/features/authentication/domain/repositories/auth_repository.dart'
+import 'package:skuupay/features/authentication/domain/repositories/auth_repository.dart'
     as _i9;
-import 'package:school_daily_fee_app/features/authentication/presentation/bloc/auth_bloc.dart'
+import 'package:skuupay/features/authentication/presentation/bloc/auth_bloc.dart'
     as _i11;
 import 'package:shared_preferences/shared_preferences.dart' as _i6;
 import 'package:sqflite/sqflite.dart' as _i4;
