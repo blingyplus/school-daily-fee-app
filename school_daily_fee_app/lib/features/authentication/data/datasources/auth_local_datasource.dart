@@ -65,11 +65,11 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
             id TEXT PRIMARY KEY,
             phoneNumber TEXT UNIQUE NOT NULL,
             otpHash TEXT,
-            otp_expires_at TEXT,
-            last_login TEXT,
+            otp_expires_at INTEGER,
+            last_login INTEGER,
             is_active INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
           )
         ''');
         print('Users table created successfully'); // Debug log
@@ -78,7 +78,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       // First, deactivate all existing users
       await database.update(
         DatabaseHelper.tableUsers,
-        {'is_active': 0, 'updated_at': DateTime.now().toIso8601String()},
+        {'is_active': 0, 'updated_at': DateTime.now().millisecondsSinceEpoch},
         where: 'is_active = ?',
         whereArgs: [1],
       );
