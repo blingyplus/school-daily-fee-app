@@ -12,11 +12,11 @@ class Environment {
   static String get supabaseUrl {
     switch (currentEnvironment) {
       case EnvironmentType.mock:
-        return 'https://dmvfqhhotzackosvboqs.supabase.co'; // Use same for mock testing
+        return 'https://dmvfqhaotzackosvboqs.supabase.co'; // Use same for mock testing
       case EnvironmentType.development:
-        return 'https://dmvfqhhotzackosvboqs.supabase.co';
+        return 'https://dmvfqhaotzackosvboqs.supabase.co';
       case EnvironmentType.production:
-        return 'https://dmvfqhhotzackosvboqs.supabase.co';
+        return 'https://dmvfqhaotzackosvboqs.supabase.co';
     }
   }
 
