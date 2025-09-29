@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/di/injection.dart';
 import 'core/navigation/app_router.dart';
 import 'core/navigation/navigation_service.dart';
+import 'core/network/supabase_client.dart';
+import 'core/sync/sync_engine.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'features/authentication/presentation/bloc/auth_bloc.dart';
@@ -18,8 +20,15 @@ import 'features/authentication/presentation/pages/dashboard_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Supabase
+  await SupabaseClientConfig.initialize();
+
   // Initialize dependency injection
   await configureDependencies();
+
+  // Initialize sync engine
+  final syncEngine = GetIt.instance<SyncEngine>();
+  await syncEngine.initialize();
 
   // Initialize theme provider
   final themeProvider = ThemeProvider();
@@ -51,7 +60,7 @@ class MyApp extends StatelessWidget {
             splitScreenMode: true,
             builder: (context, child) {
               return MaterialApp(
-                title: 'School Daily Fee App',
+                title: 'Skuupay',
                 debugShowCheckedModeBanner: false,
                 theme: AppTheme.lightTheme,
                 darkTheme: AppTheme.darkTheme,

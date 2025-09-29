@@ -94,7 +94,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         SizedBox(height: 24.h),
         Text(
-          'School Daily Fee App',
+          'Skuupay',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.onSurface,

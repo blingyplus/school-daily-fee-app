@@ -1,8 +1,9 @@
 class AppConstants {
   // App Information
-  static const String appName = 'School Daily Fee App';
+  static const String appName = 'Skuupay';
   static const String appVersion = '1.0.0';
-  static const String appDescription = 'A superfast mobile app to allow schools to manage canteen and bus fees collections easily';
+  static const String appDescription =
+      'A superfast mobile app to allow schools to manage canteen and bus fees collections easily';
 
   // Database
   static const String databaseName = 'school_fee_app.db';

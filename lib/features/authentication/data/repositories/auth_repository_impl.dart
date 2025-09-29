@@ -6,19 +6,23 @@ import '../../../../core/constants/environment.dart' as env;
 import '../../../../shared/domain/entities/user.dart';
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
+import '../datasources/auth_supabase_datasource.dart';
 import '../models/auth_response_model.dart';
 import '../models/otp_request_model.dart';
 import '../models/otp_verification_model.dart';
+import '../models/user_model.dart';
 import '../../domain/repositories/auth_repository.dart';
 
 @LazySingleton(as: AuthRepository)
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource remoteDataSource;
+  final AuthSupabaseDataSource supabaseDataSource;
   final AuthLocalDataSource localDataSource;
   final Connectivity connectivity;
 
   AuthRepositoryImpl({
     required this.remoteDataSource,
+    required this.supabaseDataSource,
     required this.localDataSource,
     required this.connectivity,
   });
@@ -27,16 +31,12 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<User> requestOTP(String phoneNumber) async {
     print(
         'AuthRepositoryImpl.requestOTP called with phone: $phoneNumber'); // Debug log
-    // Check internet connectivity only if not using mock data
-    if (!env.Environment.useMockData) {
-      print('Not using mock data, checking connectivity'); // Debug log
-      final connectivityResult = await connectivity.checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
-        throw Exception(
-            'No internet connection. Please check your network and try again.');
-      }
-    } else {
-      print('Using mock data, skipping connectivity check'); // Debug log
+
+    // Check internet connectivity
+    final connectivityResult = await connectivity.checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      throw Exception(
+          'No internet connection. Please check your network and try again.');
     }
 
     try {
@@ -47,8 +47,16 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       print('Created OTPRequestModel: ${request.toJson()}'); // Debug log
 
-      final userModel = await remoteDataSource.requestOTP(request);
-      print('Received userModel from remoteDataSource'); // Debug log
+      UserModel userModel;
+      if (env.Environment.useSupabase) {
+        print('Using Supabase for OTP request'); // Debug log
+        userModel = await supabaseDataSource.requestOTP(request);
+      } else {
+        print('Using mock/remote data source for OTP request'); // Debug log
+        userModel = await remoteDataSource.requestOTP(request);
+      }
+
+      print('Received userModel from data source'); // Debug log
       final user = userModel.toEntity();
 
       // Save user data locally
@@ -64,13 +72,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthResponse> verifyOTP(String phoneNumber, String otp) async {
-    // Check internet connectivity only if not using mock data
-    if (!env.Environment.useMockData) {
-      final connectivityResult = await connectivity.checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
-        throw Exception(
-            'No internet connection. Please check your network and try again.');
-      }
+    // Check internet connectivity
+    final connectivityResult = await connectivity.checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      throw Exception(
+          'No internet connection. Please check your network and try again.');
     }
 
     try {
@@ -80,7 +86,15 @@ class AuthRepositoryImpl implements AuthRepository {
         deviceId: await _getDeviceId(),
       );
 
-      final authResponseModel = await remoteDataSource.verifyOTP(request);
+      AuthResponseModel authResponseModel;
+      if (env.Environment.useSupabase) {
+        print('Using Supabase for OTP verification'); // Debug log
+        authResponseModel = await supabaseDataSource.verifyOTP(request);
+      } else {
+        print(
+            'Using mock/remote data source for OTP verification'); // Debug log
+        authResponseModel = await remoteDataSource.verifyOTP(request);
+      }
 
       // Save user and tokens locally
       await localDataSource.saveUser(authResponseModel.user);
@@ -147,7 +161,11 @@ class AuthRepositoryImpl implements AuthRepository {
       // Then try to logout from server (don't fail if this fails)
       if (accessToken != null) {
         try {
-          await remoteDataSource.logout(accessToken);
+          if (env.Environment.useSupabase) {
+            await supabaseDataSource.logout(accessToken);
+          } else {
+            await remoteDataSource.logout(accessToken);
+          }
         } catch (e) {
           // Log the error but don't throw
           print('Server logout failed: $e');
@@ -161,13 +179,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthResponse> refreshToken() async {
-    // Check internet connectivity only if not using mock data
-    if (!env.Environment.useMockData) {
-      final connectivityResult = await connectivity.checkConnectivity();
-      if (connectivityResult == ConnectivityResult.none) {
-        throw Exception(
-            'No internet connection. Please check your network and try again.');
-      }
+    // Check internet connectivity
+    final connectivityResult = await connectivity.checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      throw Exception(
+          'No internet connection. Please check your network and try again.');
     }
 
     try {
@@ -176,8 +192,12 @@ class AuthRepositoryImpl implements AuthRepository {
         throw Exception('No refresh token available. Please login again.');
       }
 
-      final authResponseModel =
-          await remoteDataSource.refreshToken(refreshToken);
+      AuthResponseModel authResponseModel;
+      if (env.Environment.useSupabase) {
+        authResponseModel = await supabaseDataSource.refreshToken(refreshToken);
+      } else {
+        authResponseModel = await remoteDataSource.refreshToken(refreshToken);
+      }
 
       // Save new tokens
       await localDataSource.saveTokens(
