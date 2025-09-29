@@ -10,24 +10,20 @@ UserModel _$UserModelFromJson(Map<String, dynamic> json) => UserModel(
       id: json['id'] as String,
       phoneNumber: json['phoneNumber'] as String,
       otpHash: json['otpHash'] as String?,
-      otpExpiresAt: json['otp_expires_at'] == null
-          ? null
-          : DateTime.parse(json['otp_expires_at'] as String),
-      lastLogin: json['last_login'] == null
-          ? null
-          : DateTime.parse(json['last_login'] as String),
+      otpExpiresAt: (json['otp_expires_at'] as num?)?.toInt(),
+      lastLogin: (json['last_login'] as num?)?.toInt(),
       isActive: json['is_active'] as bool,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: (json['created_at'] as num).toInt(),
+      updatedAt: (json['updated_at'] as num).toInt(),
     );
 
 Map<String, dynamic> _$UserModelToJson(UserModel instance) => <String, dynamic>{
       'id': instance.id,
       'phoneNumber': instance.phoneNumber,
       'otpHash': instance.otpHash,
-      'otp_expires_at': instance.otpExpiresAt?.toIso8601String(),
-      'last_login': instance.lastLogin?.toIso8601String(),
+      'otp_expires_at': instance.otpExpiresAt,
+      'last_login': instance.lastLogin,
       'is_active': instance.isActive,
-      'created_at': instance.createdAt.toIso8601String(),
-      'updated_at': instance.updatedAt.toIso8601String(),
+      'created_at': instance.createdAt,
+      'updated_at': instance.updatedAt,
     };

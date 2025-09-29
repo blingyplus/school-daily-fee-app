@@ -10,15 +10,15 @@ class UserModel {
   final String phoneNumber;
   final String? otpHash;
   @JsonKey(name: 'otp_expires_at')
-  final DateTime? otpExpiresAt;
+  final int? otpExpiresAt;
   @JsonKey(name: 'last_login')
-  final DateTime? lastLogin;
+  final int? lastLogin;
   @JsonKey(name: 'is_active')
   final bool isActive;
   @JsonKey(name: 'created_at')
-  final DateTime createdAt;
+  final int createdAt;
   @JsonKey(name: 'updated_at')
-  final DateTime updatedAt;
+  final int updatedAt;
 
   const UserModel({
     required this.id,
@@ -41,11 +41,11 @@ class UserModel {
       id: user.id,
       phoneNumber: user.phoneNumber,
       otpHash: user.otpHash,
-      otpExpiresAt: user.otpExpiresAt,
-      lastLogin: user.lastLogin,
+      otpExpiresAt: user.otpExpiresAt?.millisecondsSinceEpoch,
+      lastLogin: user.lastLogin?.millisecondsSinceEpoch,
       isActive: user.isActive,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
+      createdAt: user.createdAt.millisecondsSinceEpoch,
+      updatedAt: user.updatedAt.millisecondsSinceEpoch,
     );
   }
 
@@ -54,11 +54,15 @@ class UserModel {
       id: id,
       phoneNumber: phoneNumber,
       otpHash: otpHash,
-      otpExpiresAt: otpExpiresAt,
-      lastLogin: lastLogin,
+      otpExpiresAt: otpExpiresAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(otpExpiresAt!)
+          : null,
+      lastLogin: lastLogin != null
+          ? DateTime.fromMillisecondsSinceEpoch(lastLogin!)
+          : null,
       isActive: isActive,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(createdAt),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(updatedAt),
     );
   }
 
@@ -66,11 +70,11 @@ class UserModel {
     String? id,
     String? phoneNumber,
     String? otpHash,
-    DateTime? otpExpiresAt,
-    DateTime? lastLogin,
+    int? otpExpiresAt,
+    int? lastLogin,
     bool? isActive,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    int? createdAt,
+    int? updatedAt,
   }) {
     return UserModel(
       id: id ?? this.id,
