@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/constants/environment.dart' as env;
 import '../../../../shared/domain/entities/user.dart';
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
@@ -24,11 +25,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<User> requestOTP(String phoneNumber) async {
-    // Check internet connectivity
-    final connectivityResult = await connectivity.checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      throw Exception(
-          'No internet connection. Please check your network and try again.');
+    // Check internet connectivity only if not using mock data
+    if (!env.Environment.useMockData) {
+      final connectivityResult = await connectivity.checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        throw Exception(
+            'No internet connection. Please check your network and try again.');
+      }
     }
 
     try {
@@ -52,11 +55,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthResponse> verifyOTP(String phoneNumber, String otp) async {
-    // Check internet connectivity
-    final connectivityResult = await connectivity.checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      throw Exception(
-          'No internet connection. Please check your network and try again.');
+    // Check internet connectivity only if not using mock data
+    if (!env.Environment.useMockData) {
+      final connectivityResult = await connectivity.checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        throw Exception(
+            'No internet connection. Please check your network and try again.');
+      }
     }
 
     try {
@@ -147,11 +152,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AuthResponse> refreshToken() async {
-    // Check internet connectivity
-    final connectivityResult = await connectivity.checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
-      throw Exception(
-          'No internet connection. Please check your network and try again.');
+    // Check internet connectivity only if not using mock data
+    if (!env.Environment.useMockData) {
+      final connectivityResult = await connectivity.checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        throw Exception(
+            'No internet connection. Please check your network and try again.');
+      }
     }
 
     try {

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/constants/environment.dart' as env;
+import '../../../../core/data/mock_auth_service.dart';
 import '../models/auth_response_model.dart';
 import '../models/otp_request_model.dart';
 import '../models/otp_verification_model.dart';
@@ -17,11 +19,25 @@ abstract class AuthRemoteDataSource {
 @LazySingleton(as: AuthRemoteDataSource)
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final Dio dio;
+  final MockAuthService _mockAuthService = MockAuthService();
 
   AuthRemoteDataSourceImpl({required this.dio});
 
   @override
   Future<UserModel> requestOTP(OTPRequestModel request) async {
+    // Use mock service if enabled
+    if (env.Environment.useMockData) {
+      final mockResponse =
+          await _mockAuthService.requestOTP(request.phoneNumber);
+
+      if (mockResponse['success'] == true) {
+        return UserModel.fromJson(mockResponse['data']);
+      } else {
+        throw Exception(mockResponse['message'] ?? 'Failed to request OTP');
+      }
+    }
+
+    // Real API call
     try {
       final response = await dio.post(
         '/auth/request-otp',
@@ -54,6 +70,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<AuthResponseModel> verifyOTP(OTPVerificationModel request) async {
+    // Use mock service if enabled
+    if (env.Environment.useMockData) {
+      final mockResponse =
+          await _mockAuthService.verifyOTP(request.phoneNumber, request.otp);
+
+      if (mockResponse['success'] == true) {
+        return AuthResponseModel.fromJson(mockResponse['data']);
+      } else {
+        throw Exception(mockResponse['message'] ?? 'Failed to verify OTP');
+      }
+    }
+
+    // Real API call
     try {
       final response = await dio.post(
         '/auth/verify-otp',
@@ -116,6 +145,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<void> logout(String accessToken) async {
+    // Use mock service if enabled
+    if (env.Environment.useMockData) {
+      await _mockAuthService.logout(accessToken);
+      return;
+    }
+
+    // Real API call
     try {
       await dio.post(
         '/auth/logout',

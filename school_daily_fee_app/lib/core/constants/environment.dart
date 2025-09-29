@@ -1,87 +1,43 @@
+enum EnvironmentType { mock, development, production }
+
 class Environment {
-  static const String _environment = String.fromEnvironment(
-    'ENVIRONMENT',
-    defaultValue: 'development',
-  );
+  // Environment Configuration
+  static const EnvironmentType currentEnvironment = EnvironmentType.mock;
 
-  static const String _supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://your-project.supabase.co',
-  );
+  // Database
+  static const String dbName = 'school_fee_app.db';
+  static const int dbVersion = 1;
 
-  static const String _supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: 'your-anon-key-here',
-  );
+  // API Configuration
+  static String get apiBaseUrl {
+    switch (currentEnvironment) {
+      case EnvironmentType.mock:
+        return 'http://localhost:3000/v1'; // Mock server
+      case EnvironmentType.development:
+        return 'https://dev-api.schoolfeeapp.com/v1';
+      case EnvironmentType.production:
+        return 'https://api.schoolfeeapp.com/v1';
+    }
+  }
 
-  static const String _apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://your-api-url.com/api/v1',
-  );
-
-  static const String _dbName = String.fromEnvironment(
-    'DB_NAME',
-    defaultValue: 'school_fee_app.db',
-  );
-
-  static const int _dbVersion = int.fromEnvironment(
-    'DB_VERSION',
-    defaultValue: 1,
-  );
-
-  static const int _apiTimeout = int.fromEnvironment(
-    'API_TIMEOUT',
-    defaultValue: 30000,
-  );
-
-  static const int _syncIntervalMinutes = int.fromEnvironment(
-    'SYNC_INTERVAL_MINUTES',
-    defaultValue: 15,
-  );
-
-  static const int _maxRetryAttempts = int.fromEnvironment(
-    'MAX_RETRY_ATTEMPTS',
-    defaultValue: 3,
-  );
-
-  static const int _maxFileSizeMB = int.fromEnvironment(
-    'MAX_FILE_SIZE_MB',
-    defaultValue: 10,
-  );
-
-  // Getters
-  static String get environment => _environment;
-  static String get supabaseUrl => _supabaseUrl;
-  static String get supabaseAnonKey => _supabaseAnonKey;
-  static String get apiBaseUrl => _apiBaseUrl;
-  static String get dbName => _dbName;
-  static int get dbVersion => _dbVersion;
-  static int get apiTimeout => _apiTimeout;
-  static int get syncIntervalMinutes => _syncIntervalMinutes;
-  static int get maxRetryAttempts => _maxRetryAttempts;
-  static int get maxFileSizeMB => _maxFileSizeMB;
-
-  // Environment checks
-  static bool get isDevelopment => _environment == 'development';
-  static bool get isStaging => _environment == 'staging';
-  static bool get isProduction => _environment == 'production';
+  static const int apiTimeout = 30000; // 30 seconds
 
   // App Configuration
-  static const String appName = 'School Daily Fee App';
   static const String appVersion = '1.0.0';
-  static const String supportEmail = 'support@schoolfeeapp.com';
+  static const String appName = 'School Daily Fee App';
 
-  // File Configuration
-  static const List<String> allowedFileTypes = [
-    'jpg',
-    'jpeg',
-    'png',
-    'pdf',
-    'xlsx',
-    'csv',
-  ];
+  // Environment-specific flags
+  static bool get useMockData => currentEnvironment == EnvironmentType.mock;
+  static bool get enableLogging =>
+      currentEnvironment != EnvironmentType.production;
+  static bool get enableCrashlytics =>
+      currentEnvironment == EnvironmentType.production;
 
-  // Security
-  static const String encryptionKey = 'your_32_character_encryption_key_here';
-  static const String jwtSecret = 'your_jwt_secret_here';
+  // Mock Data Configuration
+  static const String mockDataPath = 'assets/mock_data/';
+
+  // Feature Flags
+  static const bool enableOfflineMode = true;
+  static const bool enablePushNotifications = false;
+  static const bool enableAnalytics = false;
 }

@@ -1,0 +1,103 @@
+{
+  "students": [
+    {
+      "id": "student_001",
+      "school_id": "school_001",
+      "class_id": "class_001",
+      "student_id": "STU001",
+      "first_name": "Kofi",
+      "last_name": "Mensah",
+      "date_of_birth": 1577836800000,
+      "photo_url": null,
+      "parent_phone": "+233244123456",
+      "parent_email": "parent1@email.com",
+      "address": "789 Ring Road, Accra",
+      "is_active": true,
+      "enrolled_at": 1703000000000,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "student_002",
+      "school_id": "school_001",
+      "class_id": "class_001",
+      "student_id": "STU002",
+      "first_name": "Akosua",
+      "last_name": "Adjei",
+      "date_of_birth": 1577836800000,
+      "photo_url": null,
+      "parent_phone": "+233244234567",
+      "parent_email": "parent2@email.com",
+      "address": "321 Oxford Street, Accra",
+      "is_active": true,
+      "enrolled_at": 1703000000000,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "student_003",
+      "school_id": "school_001",
+      "class_id": "class_002",
+      "student_id": "STU003",
+      "first_name": "Yaw",
+      "last_name": "Boateng",
+      "date_of_birth": 1577836800000,
+      "photo_url": null,
+      "parent_phone": "+233244345678",
+      "parent_email": "parent3@email.com",
+      "address": "654 Cantonments, Accra",
+      "is_active": true,
+      "enrolled_at": 1703000000000,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    }
+  ],
+  "classes": [
+    {
+      "id": "class_001",
+      "school_id": "school_001",
+      "name": "Grade 1A",
+      "grade_level": "1",
+      "section": "A",
+      "academic_year": 2024,
+      "is_active": true,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "class_002",
+      "school_id": "school_001",
+      "name": "Grade 1B",
+      "grade_level": "1",
+      "section": "B",
+      "academic_year": 2024,
+      "is_active": true,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    }
+  ],
+  "student_fee_config": [
+    {
+      "id": "fee_config_001",
+      "student_id": "student_001",
+      "canteen_daily_fee": 5.0,
+      "transport_daily_fee": 3.0,
+      "transport_location": "Accra Central",
+      "canteen_enabled": true,
+      "transport_enabled": true,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "fee_config_002",
+      "student_id": "student_002",
+      "canteen_daily_fee": 5.0,
+      "transport_daily_fee": 4.0,
+      "transport_location": "East Legon",
+      "canteen_enabled": true,
+      "transport_enabled": true,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    }
+  ]
+}

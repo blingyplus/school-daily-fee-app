@@ -1,0 +1,71 @@
+{
+  "fee_collections": [
+    {
+      "id": "fee_001",
+      "school_id": "school_001",
+      "student_id": "student_001",
+      "collected_by": "teacher_001",
+      "fee_type": "canteen",
+      "amount_paid": 25.0,
+      "payment_date": 1703123456789,
+      "coverage_start_date": 1703030400000,
+      "coverage_end_date": 1703116800000,
+      "payment_method": "cash",
+      "receipt_number": "RCP001",
+      "notes": "Weekly canteen fee",
+      "collected_at": 1703123456789,
+      "synced_at": 1703123456789,
+      "sync_status": "synced",
+      "created_at": 1703123456789,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "fee_002",
+      "school_id": "school_001",
+      "student_id": "student_001",
+      "collected_by": "teacher_001",
+      "fee_type": "transport",
+      "amount_paid": 15.0,
+      "payment_date": 1703123456789,
+      "coverage_start_date": 1703030400000,
+      "coverage_end_date": 1703116800000,
+      "payment_method": "mobile_money",
+      "receipt_number": "RCP002",
+      "notes": "Weekly transport fee",
+      "collected_at": 1703123456789,
+      "synced_at": 1703123456789,
+      "sync_status": "synced",
+      "created_at": 1703123456789,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "fee_003",
+      "school_id": "school_001",
+      "student_id": "student_002",
+      "collected_by": "teacher_002",
+      "fee_type": "canteen",
+      "amount_paid": 25.0,
+      "payment_date": 1703123456789,
+      "coverage_start_date": 1703030400000,
+      "coverage_end_date": 1703116800000,
+      "payment_method": "cash",
+      "receipt_number": "RCP003",
+      "notes": "Weekly canteen fee",
+      "collected_at": 1703123456789,
+      "synced_at": null,
+      "sync_status": "pending",
+      "created_at": 1703123456789,
+      "updated_at": 1703123456789
+    }
+  ],
+  "fee_summary": {
+    "date": 1703123456789,
+    "total_collected": 65.0,
+    "canteen_total": 50.0,
+    "transport_total": 15.0,
+    "cash_payments": 50.0,
+    "mobile_money_payments": 15.0,
+    "total_students": 2,
+    "collection_rate": 66.67
+  }
+}

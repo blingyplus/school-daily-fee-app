@@ -35,7 +35,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     6,
     (index) => FocusNode(),
   );
-  
+
   bool _isLoading = false;
   bool _isResending = false;
   int _resendTimer = 0;
@@ -165,24 +165,24 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
         Text(
           'Enter Verification Code',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
         ),
         SizedBox(height: 8.h),
         Text(
           'We sent a 6-digit code to',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
         ),
         SizedBox(height: 4.h),
         Text(
           widget.phoneNumber,
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.primary,
-          ),
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.primary,
+              ),
         ),
       ],
     );
@@ -221,8 +221,8 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
             textAlign: TextAlign.center,
             maxLength: 1,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
             decoration: InputDecoration(
               counterText: '',
               border: OutlineInputBorder(
@@ -275,8 +275,8 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           Text(
             'Resend code in ${_resendTimer}s',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
           )
         else
           TextButton(
@@ -300,7 +300,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
   void _handleOTPVerification() {
     final otp = _otpControllers.map((controller) => controller.text).join();
-    
+
     if (otp.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -311,21 +311,25 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
       return;
     }
 
+    setState(() {
+      _isLoading = true;
+    });
+
     context.read<AuthBloc>().add(
-      AuthOTPVerificationRequested(
-        phoneNumber: widget.phoneNumber,
-        otp: otp,
-      ),
-    );
+          AuthOTPVerificationRequested(
+            phoneNumber: widget.phoneNumber,
+            otp: otp,
+          ),
+        );
   }
 
   void _handleResendOTP() {
     setState(() {
       _isResending = true;
     });
-    
+
     context.read<AuthBloc>().add(
-      AuthOTPResendRequested(phoneNumber: widget.phoneNumber),
-    );
+          AuthOTPResendRequested(phoneNumber: widget.phoneNumber),
+        );
   }
 }

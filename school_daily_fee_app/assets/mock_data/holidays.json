@@ -1,0 +1,34 @@
+{
+  "holidays": [
+    {
+      "id": "holiday_001",
+      "school_id": "school_001",
+      "holiday_date": 1704067200000,
+      "name": "New Year's Day",
+      "description": "Public holiday",
+      "is_recurring": true,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "holiday_002",
+      "school_id": "school_001",
+      "holiday_date": 1706745600000,
+      "name": "Independence Day",
+      "description": "Ghana Independence Day",
+      "is_recurring": true,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "holiday_003",
+      "school_id": "school_001",
+      "holiday_date": 1709337600000,
+      "name": "Easter Monday",
+      "description": "Religious holiday",
+      "is_recurring": false,
+      "created_at": 1703000000000,
+      "updated_at": 1703123456789
+    }
+  ]
+}

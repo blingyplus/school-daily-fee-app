@@ -1,0 +1,57 @@
+{
+  "attendance_records": [
+    {
+      "id": "attendance_001",
+      "school_id": "school_001",
+      "student_id": "student_001",
+      "class_id": "class_001",
+      "recorded_by": "teacher_001",
+      "attendance_date": 1703123456789,
+      "status": "present",
+      "notes": "On time",
+      "recorded_at": 1703123456789,
+      "synced_at": 1703123456789,
+      "sync_status": "synced",
+      "created_at": 1703123456789,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "attendance_002",
+      "school_id": "school_001",
+      "student_id": "student_002",
+      "class_id": "class_001",
+      "recorded_by": "teacher_001",
+      "attendance_date": 1703123456789,
+      "status": "present",
+      "notes": "Late by 10 minutes",
+      "recorded_at": 1703123456789,
+      "synced_at": 1703123456789,
+      "sync_status": "synced",
+      "created_at": 1703123456789,
+      "updated_at": 1703123456789
+    },
+    {
+      "id": "attendance_003",
+      "school_id": "school_001",
+      "student_id": "student_003",
+      "class_id": "class_002",
+      "recorded_by": "teacher_002",
+      "attendance_date": 1703123456789,
+      "status": "absent",
+      "notes": "Sick leave",
+      "recorded_at": 1703123456789,
+      "synced_at": null,
+      "sync_status": "pending",
+      "created_at": 1703123456789,
+      "updated_at": 1703123456789
+    }
+  ],
+  "attendance_summary": {
+    "date": 1703123456789,
+    "total_students": 3,
+    "present": 2,
+    "absent": 1,
+    "late": 1,
+    "attendance_rate": 66.67
+  }
+}
