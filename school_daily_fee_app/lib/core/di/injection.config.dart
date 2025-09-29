@@ -12,7 +12,17 @@ import 'package:connectivity_plus/connectivity_plus.dart' as _i3;
 import 'package:dio/dio.dart' as _i5;
 import 'package:get_it/get_it.dart' as _i1;
 import 'package:injectable/injectable.dart' as _i2;
-import 'package:school_daily_fee_app/core/di/di_module.dart' as _i7;
+import 'package:school_daily_fee_app/core/di/di_module.dart' as _i12;
+import 'package:school_daily_fee_app/features/authentication/data/datasources/auth_local_datasource.dart'
+    as _i7;
+import 'package:school_daily_fee_app/features/authentication/data/datasources/auth_remote_datasource.dart'
+    as _i8;
+import 'package:school_daily_fee_app/features/authentication/data/repositories/auth_repository_impl.dart'
+    as _i10;
+import 'package:school_daily_fee_app/features/authentication/domain/repositories/auth_repository.dart'
+    as _i9;
+import 'package:school_daily_fee_app/features/authentication/presentation/bloc/auth_bloc.dart'
+    as _i11;
 import 'package:shared_preferences/shared_preferences.dart' as _i6;
 import 'package:sqflite/sqflite.dart' as _i4;
 
@@ -38,8 +48,21 @@ extension GetItInjectableX on _i1.GetIt {
       () => dIModule.sharedPreferences,
       preResolve: true,
     );
+    gh.lazySingleton<_i7.AuthLocalDataSource>(() => _i7.AuthLocalDataSourceImpl(
+          sharedPreferences: gh<_i6.SharedPreferences>(),
+          database: gh<_i4.Database>(),
+        ));
+    gh.lazySingleton<_i8.AuthRemoteDataSource>(
+        () => _i8.AuthRemoteDataSourceImpl(dio: gh<_i5.Dio>()));
+    gh.lazySingleton<_i9.AuthRepository>(() => _i10.AuthRepositoryImpl(
+          remoteDataSource: gh<_i8.AuthRemoteDataSource>(),
+          localDataSource: gh<_i7.AuthLocalDataSource>(),
+          connectivity: gh<_i3.Connectivity>(),
+        ));
+    gh.factory<_i11.AuthBloc>(
+        () => _i11.AuthBloc(authRepository: gh<_i9.AuthRepository>()));
     return this;
   }
 }
 
-class _$DIModule extends _i7.DIModule {}
+class _$DIModule extends _i12.DIModule {}

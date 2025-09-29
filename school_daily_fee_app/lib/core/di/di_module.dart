@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
@@ -5,7 +6,7 @@ import 'package:path/path.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 
-import '../constants/environment.dart';
+import '../constants/environment.dart' as env;
 
 @module
 abstract class DIModule {
@@ -18,11 +19,11 @@ abstract class DIModule {
   @singleton
   Future<Database> get database async {
     final databasesPath = await getDatabasesPath();
-    final path = join(databasesPath, Environment.dbName);
+    final path = join(databasesPath, env.Environment.dbName);
 
     return await openDatabase(
       path,
-      version: Environment.dbVersion,
+      version: env.Environment.dbVersion,
       onCreate: (db, version) {
         // Database tables will be created here
         // We'll implement this in the next step
@@ -36,9 +37,11 @@ abstract class DIModule {
   @singleton
   Dio get dio {
     final dio = Dio();
-    dio.options.baseUrl = Environment.apiBaseUrl;
-    dio.options.connectTimeout = Duration(milliseconds: Environment.apiTimeout);
-    dio.options.receiveTimeout = Duration(milliseconds: Environment.apiTimeout);
+    dio.options.baseUrl = env.Environment.apiBaseUrl;
+    dio.options.connectTimeout =
+        Duration(milliseconds: env.Environment.apiTimeout);
+    dio.options.receiveTimeout =
+        Duration(milliseconds: env.Environment.apiTimeout);
 
     // Add interceptors for logging, authentication, etc.
     dio.interceptors.add(LogInterceptor(

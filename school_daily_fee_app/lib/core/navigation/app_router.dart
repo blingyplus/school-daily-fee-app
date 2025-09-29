@@ -2,13 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../features/authentication/presentation/pages/login_page.dart';
 import '../../features/authentication/presentation/pages/otp_verification_page.dart';
-import '../../features/dashboard/presentation/pages/dashboard_page.dart';
-import '../../features/student_management/presentation/pages/students_list_page.dart';
-import '../../features/student_management/presentation/pages/student_details_page.dart';
-import '../../features/attendance/presentation/pages/attendance_page.dart';
-import '../../features/fee_collection/presentation/pages/fee_collection_page.dart';
-import '../../features/reports/presentation/pages/reports_page.dart';
-import '../../features/school_management/presentation/pages/school_settings_page.dart';
+import '../../features/authentication/presentation/pages/dashboard_page.dart';
 
 class AppRouter {
   static const String login = '/login';
@@ -46,40 +40,49 @@ class AppRouter {
 
       case studentsList:
         return MaterialPageRoute(
-          builder: (_) => const StudentsListPage(),
+          builder: (_) => const Scaffold(
+            body: Center(child: Text('Students List - Coming Soon')),
+          ),
           settings: settings,
         );
 
       case studentDetails:
-        final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
-          builder: (_) => StudentDetailsPage(
-            studentId: args?['studentId'] ?? '',
+          builder: (_) => const Scaffold(
+            body: Center(child: Text('Student Details - Coming Soon')),
           ),
           settings: settings,
         );
 
       case attendance:
         return MaterialPageRoute(
-          builder: (_) => const AttendancePage(),
+          builder: (_) => const Scaffold(
+            body: Center(child: Text('Attendance - Coming Soon')),
+          ),
           settings: settings,
         );
 
       case feeCollection:
         return MaterialPageRoute(
-          builder: (_) => const FeeCollectionPage(),
+          builder: (_) => const Scaffold(
+            body: Center(child: Text('Fee Collection - Coming Soon')),
+          ),
           settings: settings,
         );
 
       case reports:
         return MaterialPageRoute(
-          builder: (_) => const ReportsPage(),
+          builder: (_) => const Scaffold(
+            body: Center(child: Text('Reports - Coming Soon')),
+          ),
           settings: settings,
         );
 
       case schoolSettings:
         return MaterialPageRoute(
-          builder: (_) => const SchoolSettingsPage(),
+          builder: (_) => const Scaffold(
+            body: Center(child: Text('School Settings - Coming Soon')),
+          ),
           settings: settings,
         );
 

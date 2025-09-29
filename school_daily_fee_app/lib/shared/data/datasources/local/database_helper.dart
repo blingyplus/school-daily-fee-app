@@ -1,12 +1,11 @@
+import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-import '../../../core/constants/app_constants.dart';
-
 class DatabaseHelper {
   static Database? _database;
-  static const String _databaseName = AppConstants.databaseName;
-  static const int _databaseVersion = AppConstants.databaseVersion;
+  static const String _databaseName = 'school_fee_app.db';
+  static const int _databaseVersion = 1;
 
   // Table names
   static const String tableUsers = 'users';
@@ -156,7 +155,7 @@ class DatabaseHelper {
         notes TEXT,
         recorded_at INTEGER NOT NULL,
         synced_at INTEGER,
-        sync_status TEXT NOT NULL DEFAULT '${AppConstants.syncStatusPending}',
+        sync_status TEXT NOT NULL DEFAULT 'pending',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         FOREIGN KEY (school_id) REFERENCES $tableSchools (id),
@@ -183,7 +182,7 @@ class DatabaseHelper {
         notes TEXT,
         collected_at INTEGER NOT NULL,
         synced_at INTEGER,
-        sync_status TEXT NOT NULL DEFAULT '${AppConstants.syncStatusPending}',
+        sync_status TEXT NOT NULL DEFAULT 'pending',
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         FOREIGN KEY (school_id) REFERENCES $tableSchools (id),
