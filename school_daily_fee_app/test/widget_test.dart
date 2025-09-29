@@ -7,24 +7,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:school_daily_fee_app/main.dart';
+import 'package:school_daily_fee_app/core/theme/theme_provider.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+  testWidgets('App loads without crashing', (WidgetTester tester) async {
+    // Setup mock SharedPreferences
+    SharedPreferences.setMockInitialValues({});
+
+    // Create theme provider
+    final themeProvider = ThemeProvider();
+    await themeProvider.initialize(await SharedPreferences.getInstance());
+
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(MyApp(themeProvider: themeProvider));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the app loads (look for login page or dashboard)
+    expect(find.text('School Daily Fee App'), findsOneWidget);
   });
 }

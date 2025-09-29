@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/navigation/app_router.dart';
@@ -22,6 +23,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   bool _isLoading = false;
+  String _countryCode = '+233'; // Ghana country code
 
   @override
   void dispose() {
@@ -60,21 +62,17 @@ class _LoginPageState extends State<LoginPage> {
           }
         },
         child: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: EdgeInsets.all(AppConstants.largePadding.w),
             child: Column(
               children: [
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildHeader(),
-                      SizedBox(height: 48.h),
-                      _buildLoginForm(),
-                    ],
-                  ),
-                ),
+                SizedBox(height: 40.h),
+                _buildHeader(),
+                SizedBox(height: 48.h),
+                _buildLoginForm(),
+                SizedBox(height: 40.h),
                 _buildFooter(),
+                SizedBox(height: 20.h),
               ],
             ),
           ),
@@ -103,16 +101,16 @@ class _LoginPageState extends State<LoginPage> {
         Text(
           'School Daily Fee App',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface,
-          ),
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
         ),
         SizedBox(height: 8.h),
         Text(
           'Manage canteen and transport fees easily',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
           textAlign: TextAlign.center,
         ),
       ],
@@ -128,31 +126,54 @@ class _LoginPageState extends State<LoginPage> {
           Text(
             'Enter your phone number',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 8.h),
           Text(
             'We\'ll send you a verification code',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
             textAlign: TextAlign.center,
           ),
           SizedBox(height: 32.h),
-          CustomTextField(
-            label: 'Phone Number',
-            hint: '+1 234 567 8900',
+          IntlPhoneField(
             controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            prefixIcon: const Icon(Icons.phone),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
+            initialCountryCode: 'GH', // Ghana
+            decoration: InputDecoration(
+              labelText: 'Phone Number',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppConstants.defaultPadding,
+                vertical: AppConstants.defaultPadding,
+              ),
+            ),
+            onChanged: (phone) {
+              _countryCode = phone.countryCode;
+            },
+            validator: (phone) {
+              if (phone == null || phone.number.isEmpty) {
                 return 'Please enter your phone number';
               }
-              if (value.length < 10) {
+              if (phone.number.length < 9) {
                 return 'Please enter a valid phone number';
               }
               return null;
@@ -181,8 +202,8 @@ class _LoginPageState extends State<LoginPage> {
         Text(
           'By continuing, you agree to our Terms of Service and Privacy Policy',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
           textAlign: TextAlign.center,
         ),
       ],
@@ -191,10 +212,10 @@ class _LoginPageState extends State<LoginPage> {
 
   void _handleLogin() {
     if (_formKey.currentState?.validate() ?? false) {
-      final phoneNumber = _phoneController.text.trim();
+      final phoneNumber = '$_countryCode${_phoneController.text.trim()}';
       context.read<AuthBloc>().add(
-        AuthLoginRequested(phoneNumber: phoneNumber),
-      );
+            AuthLoginRequested(phoneNumber: phoneNumber),
+          );
     }
   }
 }
