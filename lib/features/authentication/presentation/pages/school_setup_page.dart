@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/services/school_service.dart';
 
 class SchoolSetupPage extends StatefulWidget {
   final String userId;
@@ -430,38 +432,46 @@ class _SchoolSetupPageState extends State<SchoolSetupPage> {
     });
 
     try {
-      // TODO: Save school, admin, and school_teachers to database
-      final schoolData = {
-        'name': _schoolNameController.text.trim(),
-        'code': _schoolCodeController.text.trim().toUpperCase(),
-        'address': _addressController.text.trim(),
-        'contact_phone': _contactPhoneController.text.trim(),
-        'contact_email': _contactEmailController.text.trim(),
-      };
+      final schoolService = GetIt.instance<SchoolService>();
 
-      final adminData = {
-        'user_id': widget.userId,
-        'first_name': widget.firstName,
-        'last_name': widget.lastName,
-        'phone_number': widget.phoneNumber,
-      };
+      // Create school with admin in one transaction
+      final schoolId = await schoolService.createSchool(
+        name: _schoolNameController.text.trim(),
+        code: _schoolCodeController.text.trim().toUpperCase(),
+        address: _addressController.text.trim(),
+        contactPhone: _contactPhoneController.text.trim(),
+        contactEmail: _contactEmailController.text.trim().isEmpty
+            ? null
+            : _contactEmailController.text.trim(),
+        adminUserId: widget.userId,
+        adminFirstName: widget.firstName,
+        adminLastName: widget.lastName,
+      );
 
-      print('School Data: $schoolData');
-      print('Admin Data: $adminData');
-
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
+      print('✅ School created successfully with ID: $schoolId');
 
       if (!mounted) return;
 
-      // Navigate to dashboard
-      Navigator.pushNamedAndRemoveUntil(
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('School created successfully!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Small delay to show success message
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (!mounted) return;
+
+      // Navigate to classes setup (next step in admin onboarding)
+      Navigator.pushReplacementNamed(
         context,
-        AppRouter.dashboard,
-        (route) => false,
+        AppRouter.classesSetup,
         arguments: {
-          'role': 'admin',
-          'schoolId': 'school_${DateTime.now().millisecondsSinceEpoch}',
+          'schoolId': schoolId,
           'userId': widget.userId,
         },
       );

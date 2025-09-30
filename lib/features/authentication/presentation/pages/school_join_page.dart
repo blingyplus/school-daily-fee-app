@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/services/school_service.dart';
 
 class SchoolJoinPage extends StatefulWidget {
   final String userId;
@@ -338,28 +340,33 @@ class _SchoolJoinPageState extends State<SchoolJoinPage> {
     });
 
     try {
-      // TODO: Search for school by code in database
+      final schoolService = GetIt.instance<SchoolService>();
       final schoolCode = _schoolCodeController.text.trim().toUpperCase();
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Mock school data
-      final mockSchool = {
-        'id': 'school_123',
-        'name': 'St. Mary\'s International School',
-        'code': schoolCode,
-        'address': '123 Education Street, Accra, Ghana',
-        'contact_phone': '+233 XX XXX XXXX',
-        'contact_email': 'info@stmarys.edu.gh',
-      };
+      final school = await schoolService.searchSchoolByCode(schoolCode);
 
       if (!mounted) return;
 
-      setState(() {
-        _foundSchool = mockSchool;
-        _isSearching = false;
-      });
+      if (school != null) {
+        setState(() {
+          _foundSchool = school;
+          _isSearching = false;
+        });
+        print('✅ School found: ${school['name']}');
+      } else {
+        setState(() {
+          _isSearching = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+                'School not found. Please check the code and try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+        return;
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -383,26 +390,34 @@ class _SchoolJoinPageState extends State<SchoolJoinPage> {
     });
 
     try {
-      // TODO: Create teacher record and school_teachers association
-      final teacherData = {
-        'user_id': widget.userId,
-        'first_name': widget.firstName,
-        'last_name': widget.lastName,
-        'employee_id': _employeeIdController.text.trim(),
-        'phone_number': widget.phoneNumber,
-      };
+      final schoolService = GetIt.instance<SchoolService>();
 
-      final schoolTeacherData = {
-        'school_id': _foundSchool!['id'],
-        'role': 'staff',
-        'is_active': true,
-      };
+      // Join school - creates teacher record and association
+      await schoolService.joinSchool(
+        schoolId: _foundSchool!['id'] as String,
+        teacherUserId: widget.userId,
+        teacherFirstName: widget.firstName,
+        teacherLastName: widget.lastName,
+        employeeId: _employeeIdController.text.trim().isEmpty
+            ? null
+            : _employeeIdController.text.trim(),
+      );
 
-      print('Teacher Data: $teacherData');
-      print('School-Teacher Association: $schoolTeacherData');
+      print('✅ Successfully joined school');
 
-      // Simulate API call
-      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Successfully joined school!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Small delay to show success message
+      await Future.delayed(const Duration(milliseconds: 500));
 
       if (!mounted) return;
 

@@ -6,10 +6,10 @@ class School extends Equatable {
   final String code;
   final String address;
   final String contactPhone;
-  final String contactEmail;
+  final String? contactEmail;
   final String subscriptionTier;
   final DateTime? subscriptionExpiresAt;
-  final Map<String, dynamic> settings;
+  final String? settings;
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -20,10 +20,10 @@ class School extends Equatable {
     required this.code,
     required this.address,
     required this.contactPhone,
-    required this.contactEmail,
+    this.contactEmail,
     required this.subscriptionTier,
     this.subscriptionExpiresAt,
-    required this.settings,
+    this.settings,
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
@@ -54,7 +54,7 @@ class School extends Equatable {
     String? contactEmail,
     String? subscriptionTier,
     DateTime? subscriptionExpiresAt,
-    Map<String, dynamic>? settings,
+    String? settings,
     bool? isActive,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -67,7 +67,8 @@ class School extends Equatable {
       contactPhone: contactPhone ?? this.contactPhone,
       contactEmail: contactEmail ?? this.contactEmail,
       subscriptionTier: subscriptionTier ?? this.subscriptionTier,
-      subscriptionExpiresAt: subscriptionExpiresAt ?? this.subscriptionExpiresAt,
+      subscriptionExpiresAt:
+          subscriptionExpiresAt ?? this.subscriptionExpiresAt,
       settings: settings ?? this.settings,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,

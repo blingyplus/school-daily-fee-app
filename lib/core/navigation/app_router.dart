@@ -7,6 +7,9 @@ import '../../features/authentication/presentation/pages/role_selection_page.dar
 import '../../features/authentication/presentation/pages/school_setup_page.dart';
 import '../../features/authentication/presentation/pages/school_join_page.dart';
 import '../../features/authentication/presentation/pages/dashboard_page.dart';
+import '../../features/school_management/presentation/pages/classes_setup_page.dart';
+import '../../features/school_management/presentation/pages/fee_structure_setup_page.dart';
+import '../../features/school_management/presentation/pages/bulk_upload_page.dart';
 
 class AppRouter {
   static const String login = '/login';
@@ -15,6 +18,9 @@ class AppRouter {
   static const String roleSelection = '/role-selection';
   static const String schoolSetup = '/school-setup';
   static const String schoolJoin = '/school-join';
+  static const String classesSetup = '/classes-setup';
+  static const String feeStructureSetup = '/fee-structure-setup';
+  static const String bulkUpload = '/bulk-upload';
   static const String dashboard = '/dashboard';
   static const String studentsList = '/students';
   static const String studentDetails = '/students/details';
@@ -83,6 +89,36 @@ class AppRouter {
             phoneNumber: args?['phoneNumber'] ?? '',
             firstName: args?['firstName'] ?? '',
             lastName: args?['lastName'] ?? '',
+          ),
+          settings: settings,
+        );
+
+      case classesSetup:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => ClassesSetupPage(
+            schoolId: args?['schoolId'] ?? '',
+            userId: args?['userId'] ?? '',
+          ),
+          settings: settings,
+        );
+
+      case feeStructureSetup:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => FeeStructureSetupPage(
+            schoolId: args?['schoolId'] ?? '',
+            userId: args?['userId'] ?? '',
+          ),
+          settings: settings,
+        );
+
+      case bulkUpload:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => BulkUploadPage(
+            schoolId: args?['schoolId'] ?? '',
+            userId: args?['userId'] ?? '',
           ),
           settings: settings,
         );
