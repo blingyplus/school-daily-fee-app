@@ -270,22 +270,57 @@ ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own data" ON public.users
     FOR ALL USING (auth.uid()::text = id::text);
 
--- School data is isolated by school_id
-CREATE POLICY "School isolation" ON public.schools
+-- School access policy - allows creation and access to associated schools
+CREATE POLICY "School access policy" ON public.schools
     FOR ALL USING (
+        -- Allow access if user is associated with the school
         id IN (
             SELECT school_id FROM public.school_teachers 
             WHERE teacher_id IN (
                 SELECT id FROM public.teachers WHERE user_id = auth.uid()
             )
         )
+        OR
+        -- Allow access if user is an admin of the school
+        id IN (
+            SELECT school_id FROM public.admins 
+            WHERE user_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        -- Allow creation if user is authenticated
+        auth.uid() IS NOT NULL
+        AND
+        -- Allow creation if user is not already associated with another school
+        -- (This prevents users from creating multiple schools)
+        NOT EXISTS (
+            SELECT 1 FROM public.school_teachers st
+            JOIN public.teachers t ON st.teacher_id = t.id
+            WHERE t.user_id = auth.uid()
+        )
+        AND
+        NOT EXISTS (
+            SELECT 1 FROM public.admins a
+            WHERE a.user_id = auth.uid()
+        )
     );
 
--- Teachers can only access schools they're associated with
-CREATE POLICY "Teacher school access" ON public.school_teachers
+-- School-teacher association access policy
+CREATE POLICY "School teachers access policy" ON public.school_teachers
     FOR ALL USING (
         teacher_id IN (
             SELECT id FROM public.teachers WHERE user_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        -- Allow creation if the teacher is the authenticated user
+        teacher_id IN (
+            SELECT id FROM public.teachers WHERE user_id = auth.uid()
+        )
+        OR
+        -- Allow creation if the admin is the authenticated user
+        school_id IN (
+            SELECT school_id FROM public.admins WHERE user_id = auth.uid()
         )
     );
 
@@ -342,12 +377,14 @@ CREATE TRIGGER update_school_config_updated_at BEFORE UPDATE ON public.school_co
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Additional RLS policies for admins
-CREATE POLICY "Admins can view own data" ON public.admins
-    FOR ALL USING (user_id = auth.uid());
+CREATE POLICY "Admins access policy" ON public.admins
+    FOR ALL USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
 
 -- Additional RLS policies for teachers
-CREATE POLICY "Teachers can view own data" ON public.teachers
-    FOR ALL USING (user_id = auth.uid());
+CREATE POLICY "Teachers access policy" ON public.teachers
+    FOR ALL USING (user_id = auth.uid())
+    WITH CHECK (user_id = auth.uid());
 
 -- Additional RLS policies for classes
 CREATE POLICY "Classes school access" ON public.classes

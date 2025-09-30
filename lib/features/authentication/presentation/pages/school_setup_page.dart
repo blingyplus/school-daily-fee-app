@@ -35,6 +35,8 @@ class _SchoolSetupPageState extends State<SchoolSetupPage> {
 
   bool _isLoading = false;
   int _currentStep = 0;
+  String _contactPhoneComplete =
+      ''; // Store complete phone number with country code
 
   @override
   void dispose() {
@@ -210,7 +212,8 @@ class _SchoolSetupPageState extends State<SchoolSetupPage> {
             ),
             initialCountryCode: 'GH', // Ghana as default
             onChanged: (phone) {
-              // The complete number with country code is in phone.completeNumber
+              // Store the complete number with country code
+              _contactPhoneComplete = phone.completeNumber;
               print('Phone number changed: ${phone.completeNumber}');
             },
             validator: (phone) {
@@ -285,7 +288,11 @@ class _SchoolSetupPageState extends State<SchoolSetupPage> {
         _buildReviewItem('School Name', _schoolNameController.text),
         _buildReviewItem('School Code', _schoolCodeController.text),
         _buildReviewItem('Address', _addressController.text),
-        _buildReviewItem('Contact Phone', _contactPhoneController.text),
+        _buildReviewItem(
+            'Contact Phone',
+            _contactPhoneComplete.isNotEmpty
+                ? _contactPhoneComplete
+                : _contactPhoneController.text),
         _buildReviewItem(
           'Contact Email',
           _contactEmailController.text.isEmpty
@@ -439,7 +446,9 @@ class _SchoolSetupPageState extends State<SchoolSetupPage> {
         name: _schoolNameController.text.trim(),
         code: _schoolCodeController.text.trim().toUpperCase(),
         address: _addressController.text.trim(),
-        contactPhone: _contactPhoneController.text.trim(),
+        contactPhone: _contactPhoneComplete.isNotEmpty
+            ? _contactPhoneComplete
+            : _contactPhoneController.text.trim(),
         contactEmail: _contactEmailController.text.trim().isEmpty
             ? null
             : _contactEmailController.text.trim(),
