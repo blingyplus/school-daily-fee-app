@@ -9,7 +9,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/environment.dart' as env;
 import '../network/supabase_client.dart';
 import '../sync/sync_engine.dart';
-import '../services/onboarding_service.dart';
 import '../services/profile_service.dart';
 import '../../shared/data/datasources/local/database_helper.dart';
 import '../../features/student_management/data/datasources/student_local_datasource.dart';
@@ -22,6 +21,24 @@ import '../../features/student_management/domain/usecases/create_student_usecase
 import '../../features/student_management/domain/usecases/update_student_usecase.dart';
 import '../../features/student_management/domain/usecases/delete_student_usecase.dart';
 import '../../features/student_management/presentation/bloc/student_bloc.dart';
+import '../../features/attendance/presentation/bloc/attendance_bloc.dart';
+import '../../features/attendance/domain/repositories/attendance_repository.dart';
+import '../../features/attendance/data/repositories/attendance_repository_impl.dart';
+import '../../features/attendance/data/datasources/attendance_local_datasource.dart';
+import '../../features/attendance/data/datasources/attendance_remote_datasource.dart';
+import '../../features/attendance/domain/usecases/get_attendance_records_usecase.dart';
+import '../../features/attendance/domain/usecases/get_class_attendance_usecase.dart';
+import '../../features/attendance/domain/usecases/mark_attendance_usecase.dart';
+import '../../features/attendance/domain/usecases/bulk_mark_attendance_usecase.dart';
+import '../../features/fee_collection/presentation/bloc/fee_collection_bloc.dart';
+import '../../features/fee_collection/domain/repositories/fee_collection_repository.dart';
+import '../../features/fee_collection/data/repositories/fee_collection_repository_impl.dart';
+import '../../features/fee_collection/data/datasources/fee_collection_local_datasource.dart';
+import '../../features/fee_collection/data/datasources/fee_collection_remote_datasource.dart';
+import '../../features/fee_collection/domain/usecases/get_fee_collections_usecase.dart';
+import '../../features/fee_collection/domain/usecases/get_student_fee_history_usecase.dart';
+import '../../features/fee_collection/domain/usecases/collect_fee_usecase.dart';
+import '../../features/fee_collection/domain/usecases/generate_receipt_number_usecase.dart';
 
 @module
 abstract class DIModule {
@@ -159,6 +176,137 @@ abstract class DIModule {
       createStudentUseCase: createStudentUseCase,
       updateStudentUseCase: updateStudentUseCase,
       deleteStudentUseCase: deleteStudentUseCase,
+    );
+  }
+
+  // Attendance Management Dependencies
+  @preResolve
+  @singleton
+  Future<AttendanceLocalDataSource> get attendanceLocalDataSource async {
+    return AttendanceLocalDataSourceImpl(DatabaseHelper());
+  }
+
+  @singleton
+  AttendanceRemoteDataSource get attendanceRemoteDataSource =>
+      AttendanceRemoteDataSourceImpl(supabaseClient);
+
+  @preResolve
+  @singleton
+  Future<AttendanceRepository> get attendanceRepository async {
+    final localDataSource = await attendanceLocalDataSource;
+    return AttendanceRepositoryImpl(
+      localDataSource: localDataSource,
+      remoteDataSource: attendanceRemoteDataSource,
+    );
+  }
+
+  @preResolve
+  @singleton
+  Future<GetAttendanceRecordsUseCase> get getAttendanceRecordsUseCase async {
+    final repository = await attendanceRepository;
+    return GetAttendanceRecordsUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<GetClassAttendanceUseCase> get getClassAttendanceUseCase async {
+    final repository = await attendanceRepository;
+    return GetClassAttendanceUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<MarkAttendanceUseCase> get markAttendanceUseCase async {
+    final repository = await attendanceRepository;
+    return MarkAttendanceUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<BulkMarkAttendanceUseCase> get bulkMarkAttendanceUseCase async {
+    final repository = await attendanceRepository;
+    return BulkMarkAttendanceUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<AttendanceBloc> get attendanceBloc async {
+    final getAttendanceRecordsUseCase = await this.getAttendanceRecordsUseCase;
+    final getClassAttendanceUseCase = await this.getClassAttendanceUseCase;
+    final markAttendanceUseCase = await this.markAttendanceUseCase;
+    final bulkMarkAttendanceUseCase = await this.bulkMarkAttendanceUseCase;
+
+    return AttendanceBloc(
+      getAttendanceRecordsUseCase: getAttendanceRecordsUseCase,
+      getClassAttendanceUseCase: getClassAttendanceUseCase,
+      markAttendanceUseCase: markAttendanceUseCase,
+      bulkMarkAttendanceUseCase: bulkMarkAttendanceUseCase,
+    );
+  }
+
+  // Fee Collection Management Dependencies
+  @preResolve
+  @singleton
+  Future<FeeCollectionLocalDataSource> get feeCollectionLocalDataSource async {
+    return FeeCollectionLocalDataSourceImpl(DatabaseHelper());
+  }
+
+  @singleton
+  FeeCollectionRemoteDataSource get feeCollectionRemoteDataSource =>
+      FeeCollectionRemoteDataSourceImpl(supabaseClient);
+
+  @preResolve
+  @singleton
+  Future<FeeCollectionRepository> get feeCollectionRepository async {
+    final localDataSource = await feeCollectionLocalDataSource;
+    return FeeCollectionRepositoryImpl(
+      localDataSource: localDataSource,
+      remoteDataSource: feeCollectionRemoteDataSource,
+    );
+  }
+
+  @preResolve
+  @singleton
+  Future<GetFeeCollectionsUseCase> get getFeeCollectionsUseCase async {
+    final repository = await feeCollectionRepository;
+    return GetFeeCollectionsUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<GetStudentFeeHistoryUseCase> get getStudentFeeHistoryUseCase async {
+    final repository = await feeCollectionRepository;
+    return GetStudentFeeHistoryUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<CollectFeeUseCase> get collectFeeUseCase async {
+    final repository = await feeCollectionRepository;
+    return CollectFeeUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<GenerateReceiptNumberUseCase> get generateReceiptNumberUseCase async {
+    final repository = await feeCollectionRepository;
+    return GenerateReceiptNumberUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<FeeCollectionBloc> get feeCollectionBloc async {
+    final getFeeCollectionsUseCase = await this.getFeeCollectionsUseCase;
+    final getStudentFeeHistoryUseCase = await this.getStudentFeeHistoryUseCase;
+    final collectFeeUseCase = await this.collectFeeUseCase;
+    final generateReceiptNumberUseCase =
+        await this.generateReceiptNumberUseCase;
+
+    return FeeCollectionBloc(
+      getFeeCollectionsUseCase: getFeeCollectionsUseCase,
+      getStudentFeeHistoryUseCase: getStudentFeeHistoryUseCase,
+      collectFeeUseCase: collectFeeUseCase,
+      generateReceiptNumberUseCase: generateReceiptNumberUseCase,
     );
   }
 }

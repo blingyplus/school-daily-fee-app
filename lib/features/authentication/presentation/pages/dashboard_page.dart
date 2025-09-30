@@ -686,10 +686,7 @@ class StudentsPage extends StatelessWidget {
     // TODO: Get schoolId from auth state
     const schoolId = 'temp-school-id'; // This should come from auth state
 
-    return BlocProvider(
-      create: (context) => GetIt.instance<StudentBloc>(),
-      child: const StudentsListPage(schoolId: schoolId),
-    );
+    return const StudentsListPage(schoolId: schoolId);
   }
 }
 

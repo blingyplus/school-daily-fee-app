@@ -10,6 +10,9 @@ import '../../features/authentication/presentation/pages/dashboard_page.dart';
 import '../../features/school_management/presentation/pages/classes_setup_page.dart';
 import '../../features/school_management/presentation/pages/fee_structure_setup_page.dart';
 import '../../features/school_management/presentation/pages/bulk_upload_page.dart';
+import '../../features/attendance/presentation/pages/class_selection_page.dart';
+import '../../features/fee_collection/presentation/pages/fee_collection_page.dart';
+import '../../features/student_management/presentation/pages/students_list_page.dart';
 
 class AppRouter {
   static const String login = '/login';
@@ -130,9 +133,10 @@ class AppRouter {
         );
 
       case studentsList:
+        final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            body: Center(child: Text('Students List - Coming Soon')),
+          builder: (_) => StudentsListPage(
+            schoolId: args?['schoolId'] ?? 'temp-school-id',
           ),
           settings: settings,
         );
@@ -146,17 +150,19 @@ class AppRouter {
         );
 
       case attendance:
+        final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            body: Center(child: Text('Attendance - Coming Soon')),
+          builder: (_) => ClassSelectionPage(
+            schoolId: args?['schoolId'] ?? 'temp-school-id',
           ),
           settings: settings,
         );
 
       case feeCollection:
+        final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
-          builder: (_) => const Scaffold(
-            body: Center(child: Text('Fee Collection - Coming Soon')),
+          builder: (_) => FeeCollectionPage(
+            schoolId: args?['schoolId'] ?? 'temp-school-id',
           ),
           settings: settings,
         );

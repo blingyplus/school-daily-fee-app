@@ -16,6 +16,9 @@ import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'features/authentication/presentation/bloc/auth_state.dart';
 import 'features/authentication/presentation/pages/login_page.dart';
+import 'features/attendance/presentation/bloc/attendance_bloc.dart';
+import 'features/fee_collection/presentation/bloc/fee_collection_bloc.dart';
+import 'features/student_management/presentation/bloc/student_bloc.dart';
 import 'shared/data/datasources/local/database_helper.dart';
 import 'dart:convert';
 
@@ -272,6 +275,15 @@ class MyApp extends StatelessWidget {
         BlocProvider<AuthBloc>(
           create: (context) =>
               GetIt.instance<AuthBloc>()..add(const AuthCheckRequested()),
+        ),
+        BlocProvider<StudentBloc>(
+          create: (context) => GetIt.instance<StudentBloc>(),
+        ),
+        BlocProvider<AttendanceBloc>(
+          create: (context) => GetIt.instance<AttendanceBloc>(),
+        ),
+        BlocProvider<FeeCollectionBloc>(
+          create: (context) => GetIt.instance<FeeCollectionBloc>(),
         ),
       ],
       child: AnimatedBuilder(
