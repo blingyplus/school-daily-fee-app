@@ -37,7 +37,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       );
 
       if (results.isNotEmpty) {
-        return UserModel.fromJson(results.first);
+        return UserModel.fromSqliteJson(results.first);
       }
       return null;
     } catch (e) {
@@ -86,7 +86,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       // Then insert or update the current user
       await database.insert(
         DatabaseHelper.tableUsers,
-        user.toJson(),
+        user.toSqliteJson(),
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
       print('User saved successfully'); // Debug log

@@ -7,7 +7,9 @@ part 'user_model.g.dart';
 @JsonSerializable()
 class UserModel {
   final String id;
+  @JsonKey(name: 'phone_number')
   final String phoneNumber;
+  @JsonKey(name: 'otp_hash')
   final String? otpHash;
   @JsonKey(name: 'otp_expires_at')
   final int? otpExpiresAt;
@@ -34,7 +36,35 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) =>
       _$UserModelFromJson(json);
 
+  /// Create from SQLite JSON (integers as booleans)
+  factory UserModel.fromSqliteJson(Map<String, dynamic> json) {
+    return UserModel(
+      id: json['id'] as String,
+      phoneNumber: json['phone_number'] as String,
+      otpHash: json['otp_hash'] as String?,
+      otpExpiresAt: json['otp_expires_at'] as int?,
+      lastLogin: json['last_login'] as int?,
+      isActive: (json['is_active'] as int) == 1, // Convert integer to boolean
+      createdAt: json['created_at'] as int,
+      updatedAt: json['updated_at'] as int,
+    );
+  }
+
   Map<String, dynamic> toJson() => _$UserModelToJson(this);
+
+  /// Convert to SQLite-compatible JSON (booleans as integers)
+  Map<String, dynamic> toSqliteJson() {
+    return {
+      'id': id,
+      'phone_number': phoneNumber,
+      'otp_hash': otpHash,
+      'otp_expires_at': otpExpiresAt,
+      'last_login': lastLogin,
+      'is_active': isActive ? 1 : 0, // Convert boolean to integer
+      'created_at': createdAt,
+      'updated_at': updatedAt,
+    };
+  }
 
   factory UserModel.fromEntity(User user) {
     return UserModel(
