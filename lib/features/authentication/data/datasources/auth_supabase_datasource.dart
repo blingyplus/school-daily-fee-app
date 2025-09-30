@@ -70,6 +70,9 @@ class AuthSupabaseDataSourceImpl implements AuthSupabaseDataSource {
           updatedAt: DateTime.now().millisecondsSinceEpoch,
         );
 
+        // Sync user to Supabase database
+        await _syncUserToDatabase(userModel);
+
         return AuthResponseModel(
           user: userModel,
           accessToken: response.session!.accessToken,
@@ -134,6 +137,60 @@ class AuthSupabaseDataSourceImpl implements AuthSupabaseDataSource {
       // Logout should not fail even if the server request fails
       // The local session will be cleared regardless
       print('Logout request failed: $e');
+    }
+  }
+
+  /// Sync user data to Supabase database
+  Future<void> _syncUserToDatabase(UserModel userModel) async {
+    try {
+      print('🔄 Syncing user to Supabase database: ${userModel.id}');
+
+      // Check if user already exists in the database
+      final existingUser = await supabaseClient
+          .from('users')
+          .select('id')
+          .eq('id', userModel.id)
+          .maybeSingle();
+
+      if (existingUser == null) {
+        // User doesn't exist, insert new user
+        final userData = {
+          'id': userModel.id,
+          'phone_number': userModel.phoneNumber,
+          'otp_hash': userModel.otpHash,
+          'otp_expires_at': userModel.otpExpiresAt != null
+              ? DateTime.fromMillisecondsSinceEpoch(userModel.otpExpiresAt!)
+                  .toIso8601String()
+              : null,
+          'last_login': userModel.lastLogin != null
+              ? DateTime.fromMillisecondsSinceEpoch(userModel.lastLogin!)
+                  .toIso8601String()
+              : null,
+          'is_active': userModel.isActive,
+          'created_at': DateTime.fromMillisecondsSinceEpoch(userModel.createdAt)
+              .toIso8601String(),
+          'updated_at': DateTime.fromMillisecondsSinceEpoch(userModel.updatedAt)
+              .toIso8601String(),
+        };
+
+        await supabaseClient.from('users').insert(userData);
+        print('✅ User synced to Supabase database successfully');
+      } else {
+        // User exists, update last login
+        await supabaseClient.from('users').update({
+          'last_login': userModel.lastLogin != null
+              ? DateTime.fromMillisecondsSinceEpoch(userModel.lastLogin!)
+                  .toIso8601String()
+              : null,
+          'updated_at': DateTime.fromMillisecondsSinceEpoch(userModel.updatedAt)
+              .toIso8601String(),
+        }).eq('id', userModel.id);
+        print('✅ User last login updated in Supabase database');
+      }
+    } catch (e) {
+      print('❌ Failed to sync user to Supabase database: $e');
+      // Don't throw - this shouldn't break the authentication flow
+      // The user is still authenticated, just not synced to the database
     }
   }
 }
