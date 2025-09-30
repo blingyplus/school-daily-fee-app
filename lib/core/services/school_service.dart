@@ -8,6 +8,7 @@ import '../sync/sync_engine.dart';
 import '../../shared/data/datasources/local/database_helper.dart';
 import '../../shared/data/models/school_model.dart';
 import '../../shared/data/models/teacher_model.dart';
+import '../../shared/data/models/admin_model.dart';
 
 @singleton
 class SchoolService {
@@ -81,7 +82,26 @@ class SchoolService {
       );
       print('✅ Teacher record saved to local DB');
 
-      // 3. Create school-teacher association with admin role
+      // 3. Create admin record
+      final adminModel = AdminModel(
+        id: uuid.v4(),
+        userId: adminUserId,
+        schoolId: schoolId,
+        firstName: adminFirstName,
+        lastName: adminLastName,
+        photoUrl: null,
+        createdAt: now.millisecondsSinceEpoch,
+        updatedAt: now.millisecondsSinceEpoch,
+      );
+
+      await database.insert(
+        DatabaseHelper.tableAdmins,
+        adminModel.toSqliteJson(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      print('✅ Admin record saved to local DB');
+
+      // 4. Create school-teacher association with admin role
       final schoolTeacherData = {
         'id': uuid.v4(),
         'school_id': schoolId,
@@ -101,7 +121,7 @@ class SchoolService {
       );
       print('✅ School-Teacher association saved to local DB');
 
-      // 4. Log sync operations
+      // 5. Log sync operations
       await syncEngine.logSyncOperation(
         schoolId: schoolId,
         entityType: 'schools',
@@ -123,10 +143,18 @@ class SchoolService {
         operation: 'insert',
       );
 
-      // 5. If online, sync to Supabase immediately
+      await syncEngine.logSyncOperation(
+        schoolId: schoolId,
+        entityType: 'admins',
+        entityId: adminModel.id,
+        operation: 'insert',
+      );
+
+      // 6. If online, sync to Supabase immediately
       if (env.Environment.useSupabase) {
         try {
-          await _syncToSupabase(schoolModel, teacherModel, schoolTeacherData);
+          await _syncToSupabase(
+              schoolModel, teacherModel, adminModel, schoolTeacherData);
         } catch (e) {
           print('⚠️ Failed to sync to Supabase, will retry later: $e');
           // Don't throw - data is safely stored locally
@@ -305,6 +333,7 @@ class SchoolService {
   Future<void> _syncToSupabase(
     SchoolModel school,
     TeacherModel teacher,
+    AdminModel admin,
     Map<String, dynamic> schoolTeacher,
   ) async {
     try {
@@ -315,6 +344,10 @@ class SchoolService {
       // Insert teacher with proper timestamp format
       await supabaseClient.from('teachers').insert(teacher.toSupabaseJson());
       print('✅ Teacher synced to Supabase');
+
+      // Insert admin with proper timestamp format
+      await supabaseClient.from('admins').insert(admin.toSupabaseJson());
+      print('✅ Admin synced to Supabase');
 
       // Convert school-teacher timestamps to ISO format
       final schoolTeacherSupabase = Map<String, dynamic>.from(schoolTeacher);

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_it/get_it.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/profile_service.dart';
@@ -23,7 +25,9 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _imagePicker = ImagePicker();
   bool _isLoading = false;
+  File? _selectedImage;
 
   @override
   void dispose() {
@@ -97,11 +101,15 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
           CircleAvatar(
             radius: 50.r,
             backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-            child: Icon(
-              Icons.person,
-              size: 50.sp,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-            ),
+            backgroundImage:
+                _selectedImage != null ? FileImage(_selectedImage!) : null,
+            child: _selectedImage == null
+                ? Icon(
+                    Icons.person,
+                    size: 50.sp,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  )
+                : null,
           ),
           Positioned(
             bottom: 0,
@@ -115,14 +123,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                   size: 18.sp,
                   color: Theme.of(context).colorScheme.onPrimary,
                 ),
-                onPressed: () {
-                  // TODO: Implement photo picker
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Photo upload coming soon'),
-                    ),
-                  );
-                },
+                onPressed: _showImagePickerOptions,
                 padding: EdgeInsets.zero,
               ),
             ),
@@ -245,6 +246,75 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  void _showImagePickerOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Take Photo'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Choose from Gallery'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+            if (_selectedImage != null)
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Remove Photo',
+                    style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedImage = null;
+                  });
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+        print('📸 Photo selected: ${image.path}');
+      }
+    } catch (e) {
+      print('❌ Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error selecting image: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
     }
   }
 }

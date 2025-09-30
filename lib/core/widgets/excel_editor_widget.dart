@@ -273,20 +273,18 @@ class _ExcelEditorWidgetState extends State<ExcelEditorWidget> {
                           ),
                           ..._data[index].asMap().entries.map((entry) {
                             return DataCell(
-                              Container(
+                              SizedBox(
                                 width: 120.w,
                                 height: 32.h,
-                                decoration: BoxDecoration(
-                                  border:
-                                      Border.all(color: Colors.grey.shade400),
-                                  color: Theme.of(context).colorScheme.surface,
-                                ),
                                 child: TextField(
                                   controller: _controllers[index][entry.key],
                                   decoration: const InputDecoration(
-                                    border: InputBorder.none,
+                                    border: OutlineInputBorder(
+                                      borderSide:
+                                          BorderSide(color: Colors.grey),
+                                    ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 8),
+                                        horizontal: 4, vertical: 4),
                                     isDense: true,
                                   ),
                                   style: TextStyle(fontSize: 12.sp),

@@ -4,9 +4,14 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart' as excel;
 import 'dart:io';
+import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/widgets/excel_editor_widget.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../shared/data/datasources/local/database_helper.dart';
+import '../../../../shared/data/models/class_model.dart';
 
 class ClassesSetupPage extends StatefulWidget {
   final String schoolId;
@@ -424,8 +429,9 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
       final excelFile = excel.Excel.decodeBytes(file.bytes!);
       print('📋 Available sheets: ${excelFile.tables.keys.toList()}');
 
-      final sheet = excelFile['Classes Template'] ??
-          excelFile[excelFile.tables.keys.first];
+      final sheet = excelFile['Classes Template'] != null
+          ? excelFile['Classes Template']!
+          : excelFile[excelFile.tables.keys.first]!;
 
       print('📊 Using sheet: ${excelFile.tables.keys.first}');
       print('📋 Total rows in sheet: ${sheet.maxRows}');
@@ -925,16 +931,9 @@ KG,B
     });
 
     try {
-      // TODO: Save classes to database
-      print('✅ Saving ${_classes.length} classes to database...');
-      for (int i = 0; i < _classes.length; i++) {
-        final cls = _classes[i];
-        print(
-            '📋 Class ${i + 1}: Grade ${cls['grade']}, Section ${cls['section']}');
-      }
-
-      // Simulate save
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Save classes to database
+      print('💾 Saving ${_classes.length} classes to database...');
+      await _saveClassesToDatabase();
       print('✅ Classes saved successfully');
 
       if (!mounted) return;
@@ -962,6 +961,48 @@ KG,B
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _saveClassesToDatabase() async {
+    try {
+      final database = getIt<Database>();
+      final uuid = const Uuid();
+      final now = DateTime.now();
+      final currentYear = now.year;
+
+      for (int i = 0; i < _classes.length; i++) {
+        final cls = _classes[i];
+        final grade = cls['grade'] as String;
+        final section = cls['section'] as String;
+
+        print('📋 Saving class ${i + 1}: Grade $grade, Section $section');
+
+        final classModel = ClassModel(
+          id: uuid.v4(),
+          schoolId: widget.schoolId,
+          name: '$grade $section',
+          gradeLevel: grade,
+          section: section,
+          academicYear: currentYear,
+          isActive: true,
+          createdAt: now.millisecondsSinceEpoch,
+          updatedAt: now.millisecondsSinceEpoch,
+        );
+
+        await database.insert(
+          DatabaseHelper.tableClasses,
+          classModel.toSqliteJson(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
+        print('✅ Class saved: ${classModel.name}');
+      }
+
+      print('✅ All ${_classes.length} classes saved to database');
+    } catch (e) {
+      print('❌ Error saving classes: $e');
+      throw Exception('Failed to save classes: $e');
     }
   }
 }

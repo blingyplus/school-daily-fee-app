@@ -342,7 +342,7 @@ class DashboardHomePage extends StatelessWidget {
                 'Mark Attendance',
                 Icons.check_circle_outline,
                 () {
-                  // TODO: Navigate to attendance
+                  Navigator.pushNamed(context, AppRouter.attendance);
                 },
               ),
             ),
@@ -353,7 +353,7 @@ class DashboardHomePage extends StatelessWidget {
                 'Collect Fees',
                 Icons.payment,
                 () {
-                  // TODO: Navigate to fee collection
+                  Navigator.pushNamed(context, AppRouter.feeCollection);
                 },
               ),
             ),
@@ -368,7 +368,7 @@ class DashboardHomePage extends StatelessWidget {
                 'Add Student',
                 Icons.person_add,
                 () {
-                  // TODO: Navigate to add student
+                  Navigator.pushNamed(context, AppRouter.studentsList);
                 },
               ),
             ),
@@ -379,7 +379,7 @@ class DashboardHomePage extends StatelessWidget {
                 'View Reports',
                 Icons.analytics,
                 () {
-                  // TODO: Navigate to reports
+                  Navigator.pushNamed(context, AppRouter.reports);
                 },
               ),
             ),

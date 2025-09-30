@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'dart:convert';
+import 'package:sqflite/sqflite.dart';
 
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/di/injection.dart';
 
 class FeeStructureSetupPage extends StatefulWidget {
   final String schoolId;
@@ -295,7 +298,7 @@ class _FeeStructureSetupPageState extends State<FeeStructureSetupPage> {
     });
 
     try {
-      // TODO: Save fee structure to database
+      // Prepare fee structure data
       final feeData = {
         'canteen_enabled': _canteenEnabled,
         'canteen_fee':
@@ -306,9 +309,13 @@ class _FeeStructureSetupPageState extends State<FeeStructureSetupPage> {
             : 0.0,
       };
 
-      print('✅ Fee structure: $feeData');
+      print('💾 Saving fee structure to database...');
+      print('📊 Fee structure: $feeData');
 
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Save fee structure to school settings
+      await _saveFeeStructureToDatabase(feeData);
+
+      print('✅ Fee structure saved successfully');
 
       if (!mounted) return;
 
@@ -333,6 +340,35 @@ class _FeeStructureSetupPageState extends State<FeeStructureSetupPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _saveFeeStructureToDatabase(Map<String, dynamic> feeData) async {
+    try {
+      // Get the database instance
+      final database = getIt<Database>();
+
+      // Create settings JSON with fee structure
+      final settings = {
+        'fee_structure': feeData,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      // Update school settings in database
+      await database.update(
+        'schools',
+        {
+          'settings': jsonEncode(settings),
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        },
+        where: 'id = ?',
+        whereArgs: [widget.schoolId],
+      );
+
+      print('✅ Fee structure saved to school settings');
+    } catch (e) {
+      print('❌ Error saving fee structure: $e');
+      throw Exception('Failed to save fee structure: $e');
     }
   }
 }

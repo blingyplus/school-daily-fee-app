@@ -5,12 +5,13 @@ import 'package:path/path.dart';
 class DatabaseHelper {
   static Database? _database;
   static const String _databaseName = 'school_fee_app.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   // Table names
   static const String tableUsers = 'users';
   static const String tableSchools = 'schools';
   static const String tableTeachers = 'teachers';
+  static const String tableAdmins = 'admins';
   static const String tableStudents = 'students';
   static const String tableClasses = 'classes';
   static const String tableSchoolTeachers = 'school_teachers';
@@ -86,6 +87,23 @@ class DatabaseHelper {
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
         FOREIGN KEY (user_id) REFERENCES $tableUsers (id)
+      )
+    ''');
+
+    // Create Admins table
+    await db.execute(
+        '''
+      CREATE TABLE $tableAdmins (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        school_id TEXT NOT NULL,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        photo_url TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES $tableUsers (id),
+        FOREIGN KEY (school_id) REFERENCES $tableSchools (id)
       )
     ''');
 
@@ -291,6 +309,12 @@ class DatabaseHelper {
     await db.execute(
         'CREATE INDEX idx_teachers_employee_id ON $tableTeachers (employee_id)');
 
+    // Admins indexes
+    await db
+        .execute('CREATE INDEX idx_admins_user_id ON $tableAdmins (user_id)');
+    await db.execute(
+        'CREATE INDEX idx_admins_school_id ON $tableAdmins (school_id)');
+
     // Students indexes
     await db.execute(
         'CREATE INDEX idx_students_school_id ON $tableStudents (school_id)');
@@ -379,6 +403,37 @@ class DatabaseHelper {
         // Add synced_at column to sync_log table
         await db
             .execute('ALTER TABLE $tableSyncLog ADD COLUMN synced_at INTEGER');
+
+        print('✅ Database upgraded successfully');
+      }
+
+      // Version 3 to 4: Add admins table
+      if (oldVersion < 4) {
+        print('🔄 Upgrading database from version $oldVersion to $newVersion');
+        print('🔄 Adding admins table');
+
+        // Create Admins table
+        await db.execute(
+            '''
+          CREATE TABLE $tableAdmins (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            school_id TEXT NOT NULL,
+            first_name TEXT NOT NULL,
+            last_name TEXT NOT NULL,
+            photo_url TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES $tableUsers (id),
+            FOREIGN KEY (school_id) REFERENCES $tableSchools (id)
+          )
+        ''');
+
+        // Create indexes for admins table
+        await db.execute(
+            'CREATE INDEX idx_admins_user_id ON $tableAdmins (user_id)');
+        await db.execute(
+            'CREATE INDEX idx_admins_school_id ON $tableAdmins (school_id)');
 
         print('✅ Database upgraded successfully');
       }
