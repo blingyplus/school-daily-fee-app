@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:excel/excel.dart';
+import 'dart:io';
 
 import '../../../../core/navigation/app_router.dart';
 
@@ -382,22 +385,211 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
     }
   }
 
-  void _downloadTeachersTemplate() {
-    // TODO: Generate and download template
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Template download coming soon'),
-      ),
-    );
+  Future<void> _downloadTeachersTemplate() async {
+    try {
+      // Create Excel file
+      final excel = Excel.createExcel();
+      final sheet = excel['Teachers Template'];
+
+      // Add headers
+      sheet.cell(CellIndex.indexByString('A1')).value =
+          TextCellValue('First Name');
+      sheet.cell(CellIndex.indexByString('B1')).value =
+          TextCellValue('Last Name');
+      sheet.cell(CellIndex.indexByString('C1')).value =
+          TextCellValue('Phone Number');
+      sheet.cell(CellIndex.indexByString('D1')).value =
+          TextCellValue('Employee ID');
+      sheet.cell(CellIndex.indexByString('E1')).value =
+          TextCellValue('Email (Optional)');
+
+      // Add sample data
+      final sampleData = [
+        ['John', 'Doe', '+233123456789', 'EMP001', 'john.doe@school.com'],
+        ['Jane', 'Smith', '+233987654321', 'EMP002', 'jane.smith@school.com'],
+        ['Michael', 'Johnson', '+233555666777', 'EMP003', ''],
+        [
+          'Sarah',
+          'Williams',
+          '+233111222333',
+          'EMP004',
+          'sarah.williams@school.com'
+        ],
+      ];
+
+      for (int i = 0; i < sampleData.length; i++) {
+        sheet.cell(CellIndex.indexByString('A${i + 2}')).value =
+            TextCellValue(sampleData[i][0]);
+        sheet.cell(CellIndex.indexByString('B${i + 2}')).value =
+            TextCellValue(sampleData[i][1]);
+        sheet.cell(CellIndex.indexByString('C${i + 2}')).value =
+            TextCellValue(sampleData[i][2]);
+        sheet.cell(CellIndex.indexByString('D${i + 2}')).value =
+            TextCellValue(sampleData[i][3]);
+        sheet.cell(CellIndex.indexByString('E${i + 2}')).value =
+            TextCellValue(sampleData[i][4]);
+      }
+
+      // Get downloads directory
+      final directory = await getDownloadsDirectory();
+      if (directory == null) {
+        throw Exception('Downloads directory not found');
+      }
+
+      final fileName =
+          'teachers_template_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      final filePath = '${directory.path}/$fileName';
+
+      // Save file
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        final file = File(filePath);
+        await file.writeAsBytes(fileBytes);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Template saved to Downloads: $fileName'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error downloading template: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
-  void _downloadStudentsTemplate() {
-    // TODO: Generate and download template
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Template download coming soon'),
-      ),
-    );
+  Future<void> _downloadStudentsTemplate() async {
+    try {
+      // Create Excel file
+      final excel = Excel.createExcel();
+      final sheet = excel['Students Template'];
+
+      // Add headers
+      sheet.cell(CellIndex.indexByString('A1')).value =
+          TextCellValue('Student ID');
+      sheet.cell(CellIndex.indexByString('B1')).value =
+          TextCellValue('First Name');
+      sheet.cell(CellIndex.indexByString('C1')).value =
+          TextCellValue('Last Name');
+      sheet.cell(CellIndex.indexByString('D1')).value = TextCellValue('Class');
+      sheet.cell(CellIndex.indexByString('E1')).value =
+          TextCellValue('Date of Birth (YYYY-MM-DD)');
+      sheet.cell(CellIndex.indexByString('F1')).value =
+          TextCellValue('Parent Phone');
+      sheet.cell(CellIndex.indexByString('G1')).value =
+          TextCellValue('Parent Email (Optional)');
+      sheet.cell(CellIndex.indexByString('H1')).value =
+          TextCellValue('Address (Optional)');
+
+      // Add sample data
+      final sampleData = [
+        [
+          'STU001',
+          'Alice',
+          'Johnson',
+          '1A',
+          '2015-03-15',
+          '+233123456789',
+          'parent1@email.com',
+          '123 Main St'
+        ],
+        [
+          'STU002',
+          'Bob',
+          'Smith',
+          '1A',
+          '2015-07-22',
+          '+233987654321',
+          'parent2@email.com',
+          '456 Oak Ave'
+        ],
+        [
+          'STU003',
+          'Charlie',
+          'Brown',
+          '1B',
+          '2015-11-08',
+          '+233555666777',
+          '',
+          '789 Pine Rd'
+        ],
+        [
+          'STU004',
+          'Diana',
+          'Wilson',
+          '2A',
+          '2014-05-30',
+          '+233111222333',
+          'parent4@email.com',
+          '321 Elm St'
+        ],
+      ];
+
+      for (int i = 0; i < sampleData.length; i++) {
+        sheet.cell(CellIndex.indexByString('A${i + 2}')).value =
+            TextCellValue(sampleData[i][0]);
+        sheet.cell(CellIndex.indexByString('B${i + 2}')).value =
+            TextCellValue(sampleData[i][1]);
+        sheet.cell(CellIndex.indexByString('C${i + 2}')).value =
+            TextCellValue(sampleData[i][2]);
+        sheet.cell(CellIndex.indexByString('D${i + 2}')).value =
+            TextCellValue(sampleData[i][3]);
+        sheet.cell(CellIndex.indexByString('E${i + 2}')).value =
+            TextCellValue(sampleData[i][4]);
+        sheet.cell(CellIndex.indexByString('F${i + 2}')).value =
+            TextCellValue(sampleData[i][5]);
+        sheet.cell(CellIndex.indexByString('G${i + 2}')).value =
+            TextCellValue(sampleData[i][6]);
+        sheet.cell(CellIndex.indexByString('H${i + 2}')).value =
+            TextCellValue(sampleData[i][7]);
+      }
+
+      // Get downloads directory
+      final directory = await getDownloadsDirectory();
+      if (directory == null) {
+        throw Exception('Downloads directory not found');
+      }
+
+      final fileName =
+          'students_template_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      final filePath = '${directory.path}/$fileName';
+
+      // Save file
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        final file = File(filePath);
+        await file.writeAsBytes(fileBytes);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Template saved to Downloads: $fileName'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error downloading template: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   void _handleSkip() {
