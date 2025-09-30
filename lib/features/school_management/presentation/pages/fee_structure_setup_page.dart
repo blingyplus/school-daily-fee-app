@@ -5,6 +5,9 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/sync/sync_engine.dart';
+import '../../../../core/constants/environment.dart' as env;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FeeStructureSetupPage extends StatefulWidget {
   final String schoolId;
@@ -335,6 +338,13 @@ class _FeeStructureSetupPageState extends State<FeeStructureSetupPage> {
         SnackBar(
           content: Text('Error: ${e.toString()}'),
           backgroundColor: Theme.of(context).colorScheme.error,
+          action: SnackBarAction(
+            label: '✕',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
       setState(() {
@@ -347,6 +357,8 @@ class _FeeStructureSetupPageState extends State<FeeStructureSetupPage> {
     try {
       // Get the database instance
       final database = getIt<Database>();
+      final syncEngine = getIt<SyncEngine>();
+      final supabaseClient = getIt<SupabaseClient>();
 
       // Create settings JSON with fee structure
       final settings = {
@@ -364,6 +376,17 @@ class _FeeStructureSetupPageState extends State<FeeStructureSetupPage> {
         where: 'id = ?',
         whereArgs: [widget.schoolId],
       );
+
+      // Log sync operation for school settings update
+      await syncEngine.logSyncOperation(
+        schoolId: widget.schoolId,
+        entityType: 'schools',
+        entityId: widget.schoolId,
+        operation: 'update',
+      );
+
+      // Sync to Supabase in background (no immediate sync for bulk operations)
+      // Data is logged for sync and will be uploaded by the sync engine
 
       print('✅ Fee structure saved to school settings');
     } catch (e) {

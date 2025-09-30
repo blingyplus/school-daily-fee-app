@@ -202,6 +202,23 @@ class OnboardingService {
     }
   }
 
+  /// Check if classes setup is completed (has at least one class)
+  Future<bool> hasCompletedClassesSetup(String schoolId) async {
+    try {
+      final classes = await database.query(
+        DatabaseHelper.tableClasses,
+        where: 'school_id = ?',
+        whereArgs: [schoolId],
+        limit: 1,
+      );
+
+      return classes.isNotEmpty;
+    } catch (e) {
+      print('Error checking classes setup completion: $e');
+      return false;
+    }
+  }
+
   /// Determine next onboarding step for a user
   Future<OnboardingStep> getNextStep(String userId) async {
     try {
@@ -222,12 +239,54 @@ class OnboardingService {
       // Check if school has basic setup (classes, teachers, students)
       final hasSchoolSetup = await hasCompletedSchoolSetup(schoolId);
 
-      if (!hasSchoolSetup) {
-        return OnboardingStep.schoolSetup;
+      if (hasSchoolSetup) {
+        // User is fully onboarded
+        return OnboardingStep.completed;
       }
 
-      // User is fully onboarded
-      return OnboardingStep.completed;
+      // Check if classes are already set up
+      final hasClasses = await hasCompletedClassesSetup(schoolId);
+
+      if (hasClasses) {
+        // Classes exist, but teachers/students might be missing
+        // Check if we need to go to fee structure or bulk upload
+        final teachers = await database.query(
+          DatabaseHelper.tableSchoolTeachers,
+          where: 'school_id = ?',
+          whereArgs: [schoolId],
+          limit: 1,
+        );
+
+        if (teachers.isEmpty) {
+          // No teachers, go to bulk upload
+          return OnboardingStep.schoolSetup; // This will route to bulk upload
+        }
+
+        // Check if fee structure is set up
+        final school = await database.query(
+          DatabaseHelper.tableSchools,
+          where: 'id = ?',
+          whereArgs: [schoolId],
+          limit: 1,
+        );
+
+        if (school.isNotEmpty) {
+          final schoolData = school.first;
+          // Check if fee structure is configured
+          if (schoolData['canteen_fee'] == null ||
+              schoolData['transport_fee'] == null) {
+            // Fee structure not set up, go to fee structure setup
+            return OnboardingStep
+                .schoolSetup; // This will route to fee structure
+          }
+        }
+
+        // If we reach here, everything is set up
+        return OnboardingStep.completed;
+      }
+
+      // No classes set up, go to classes setup
+      return OnboardingStep.schoolSetup;
     } catch (e) {
       print('Error determining next step: $e');
       return OnboardingStep.profileSetup;

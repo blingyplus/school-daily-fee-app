@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:excel/excel.dart';
+import 'package:excel/excel.dart' as excel;
 import 'dart:io';
 
 import '../../../../core/navigation/app_router.dart';
@@ -27,6 +27,10 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
   String? _studentsFilePath;
   bool _isLoading = false;
 
+  // Track saved data
+  List<Map<String, dynamic>> _savedTeachers = [];
+  List<Map<String, dynamic>> _savedStudents = [];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -35,7 +39,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         actions: [
           TextButton(
             onPressed: _handleSkip,
-            child: const Text('Skip'),
+            child: const Text('Skip for now'),
           ),
         ],
       ),
@@ -50,8 +54,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               _buildTeachersUploadCard(),
               SizedBox(height: 16.h),
               _buildStudentsUploadCard(),
-              SizedBox(height: 32.h),
-              _buildTemplatesSection(),
+              // SizedBox(height: 32.h),
+              // _buildTemplatesSection(),
               SizedBox(height: 32.h),
               _buildContinueButton(),
             ],
@@ -166,15 +170,96 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               ),
               SizedBox(height: 12.h),
             ],
-            OutlinedButton.icon(
-              onPressed: () => _pickFile('teachers'),
-              icon: const Icon(Icons.upload_file),
-              label: Text(
-                  _teachersFilePath == null ? 'Choose File' : 'Change File'),
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 14.h),
-                minimumSize: Size(double.infinity, 48.h),
+            if (_savedTeachers.isNotEmpty) ...[
+              Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8.r),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.people,
+                      color: Colors.green.shade700,
+                      size: 20.sp,
+                    ),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: Text(
+                        '${_savedTeachers.length} teachers saved',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _showTeachersModal(),
+                      icon: Icon(Icons.visibility,
+                          size: 16.sp, color: Colors.green.shade700),
+                      label: Text('View',
+                          style: TextStyle(
+                              color: Colors.green.shade700, fontSize: 12.sp)),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 8.w, vertical: 4.h),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.edit,
+                          size: 16.sp, color: Colors.green.shade700),
+                      onPressed: () => _openExcelEditor('teachers'),
+                      iconSize: 20.sp,
+                    ),
+                  ],
+                ),
               ),
+              SizedBox(height: 12.h),
+            ],
+            // Primary action - Add in App
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _openExcelEditor('teachers'),
+                icon: const Icon(Icons.edit),
+                label: const Text('Add Teachers in App'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                  minimumSize: Size(double.infinity, 48.h),
+                ),
+              ),
+            ),
+            SizedBox(height: 12.h),
+            // Secondary actions - Upload and Download in grid
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickFile('teachers'),
+                    icon: const Icon(Icons.upload_file),
+                    label:
+                        Text(_teachersFilePath == null ? 'Upload' : 'Change'),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _downloadTeachersTemplate,
+                    icon: const Icon(Icons.download),
+                    label: const Text('Download'),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                    ),
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 8.h),
             Text(
@@ -269,15 +354,96 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               ),
               SizedBox(height: 12.h),
             ],
-            OutlinedButton.icon(
-              onPressed: () => _pickFile('students'),
-              icon: const Icon(Icons.upload_file),
-              label: Text(
-                  _studentsFilePath == null ? 'Choose File' : 'Change File'),
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(vertical: 14.h),
-                minimumSize: Size(double.infinity, 48.h),
+            if (_savedStudents.isNotEmpty) ...[
+              Container(
+                padding: EdgeInsets.all(12.w),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8.r),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.groups,
+                      color: Colors.green.shade700,
+                      size: 20.sp,
+                    ),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: Text(
+                        '${_savedStudents.length} students saved',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () => _showStudentsModal(),
+                      icon: Icon(Icons.visibility,
+                          size: 16.sp, color: Colors.green.shade700),
+                      label: Text('View',
+                          style: TextStyle(
+                              color: Colors.green.shade700, fontSize: 12.sp)),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 8.w, vertical: 4.h),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.edit,
+                          size: 16.sp, color: Colors.green.shade700),
+                      onPressed: () => _openExcelEditor('students'),
+                      iconSize: 20.sp,
+                    ),
+                  ],
+                ),
               ),
+              SizedBox(height: 12.h),
+            ],
+            // Primary action - Add in App
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _openExcelEditor('students'),
+                icon: const Icon(Icons.edit),
+                label: const Text('Add Students in App'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                  minimumSize: Size(double.infinity, 48.h),
+                ),
+              ),
+            ),
+            SizedBox(height: 12.h),
+            // Secondary actions - Upload and Download in grid
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _pickFile('students'),
+                    icon: const Icon(Icons.upload_file),
+                    label:
+                        Text(_studentsFilePath == null ? 'Upload' : 'Change'),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _downloadStudentsTemplate,
+                    icon: const Icon(Icons.download),
+                    label: const Text('Download'),
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
+                    ),
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 8.h),
             Text(
@@ -315,25 +481,38 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               ],
             ),
             SizedBox(height: 12.h),
-            TextButton.icon(
-              onPressed: _downloadTeachersTemplate,
-              icon: const Icon(Icons.file_download),
-              label: const Text('Teachers Template (.xlsx)'),
+            Text(
+              'Download Excel templates to fill out and upload later',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
             ),
-            TextButton.icon(
-              onPressed: () => _openExcelEditor('teachers'),
-              icon: const Icon(Icons.edit),
-              label: const Text('Edit Teachers in App'),
-            ),
-            TextButton.icon(
-              onPressed: _downloadStudentsTemplate,
-              icon: const Icon(Icons.file_download),
-              label: const Text('Students Template (.xlsx)'),
-            ),
-            TextButton.icon(
-              onPressed: () => _openExcelEditor('students'),
-              icon: const Icon(Icons.edit),
-              label: const Text('Edit Students in App'),
+            SizedBox(height: 16.h),
+            // Download options
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _downloadTeachersTemplate,
+                    icon: const Icon(Icons.download),
+                    label: const Text('Teachers Template'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8.w),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _downloadStudentsTemplate,
+                    icon: const Icon(Icons.download),
+                    label: const Text('Students Template'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -358,7 +537,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             )
           : Text(_teachersFilePath != null || _studentsFilePath != null
               ? 'Upload & Continue'
-              : 'Skip for now'),
+              : 'Continue'),
     );
   }
 
@@ -383,6 +562,13 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             content: Text(
                 '${type == 'teachers' ? 'Teachers' : 'Students'} file selected'),
             backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: '✕',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -391,6 +577,13 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         SnackBar(
           content: Text('Error: ${e.toString()}'),
           backgroundColor: Theme.of(context).colorScheme.error,
+          action: SnackBarAction(
+            label: '✕',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
     }
@@ -399,24 +592,24 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
   Future<void> _downloadTeachersTemplate() async {
     try {
       // Create Excel file
-      final excel = Excel.createExcel();
+      final excelFile = excel.Excel.createExcel();
       // Remove the default sheet and create our custom one
-      excel.delete('Sheet1');
-      final sheet = excel['Teachers Template'];
+      excelFile.delete('Sheet1');
+      final sheet = excelFile['Teachers Template'];
 
       print('📊 Creating Teachers Template Excel file');
 
       // Add headers
-      sheet.cell(CellIndex.indexByString('A1')).value =
-          TextCellValue('First Name');
-      sheet.cell(CellIndex.indexByString('B1')).value =
-          TextCellValue('Last Name');
-      sheet.cell(CellIndex.indexByString('C1')).value =
-          TextCellValue('Phone Number');
-      sheet.cell(CellIndex.indexByString('D1')).value =
-          TextCellValue('Employee ID');
-      sheet.cell(CellIndex.indexByString('E1')).value =
-          TextCellValue('Email (Optional)');
+      sheet.cell(excel.CellIndex.indexByString('A1')).value =
+          excel.TextCellValue('First Name');
+      sheet.cell(excel.CellIndex.indexByString('B1')).value =
+          excel.TextCellValue('Last Name');
+      sheet.cell(excel.CellIndex.indexByString('C1')).value =
+          excel.TextCellValue('Phone Number');
+      sheet.cell(excel.CellIndex.indexByString('D1')).value =
+          excel.TextCellValue('Employee ID');
+      sheet.cell(excel.CellIndex.indexByString('E1')).value =
+          excel.TextCellValue('Email (Optional)');
 
       // Add sample data
       final sampleData = [
@@ -433,16 +626,16 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       ];
 
       for (int i = 0; i < sampleData.length; i++) {
-        sheet.cell(CellIndex.indexByString('A${i + 2}')).value =
-            TextCellValue(sampleData[i][0]);
-        sheet.cell(CellIndex.indexByString('B${i + 2}')).value =
-            TextCellValue(sampleData[i][1]);
-        sheet.cell(CellIndex.indexByString('C${i + 2}')).value =
-            TextCellValue(sampleData[i][2]);
-        sheet.cell(CellIndex.indexByString('D${i + 2}')).value =
-            TextCellValue(sampleData[i][3]);
-        sheet.cell(CellIndex.indexByString('E${i + 2}')).value =
-            TextCellValue(sampleData[i][4]);
+        sheet.cell(excel.CellIndex.indexByString('A${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][0]);
+        sheet.cell(excel.CellIndex.indexByString('B${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][1]);
+        sheet.cell(excel.CellIndex.indexByString('C${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][2]);
+        sheet.cell(excel.CellIndex.indexByString('D${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][3]);
+        sheet.cell(excel.CellIndex.indexByString('E${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][4]);
       }
 
       // Try to save to accessible directories
@@ -487,7 +680,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       }
 
       // Save file
-      final fileBytes = excel.save();
+      final fileBytes = excelFile.save();
       if (fileBytes != null) {
         final file = File(filePath);
         await file.writeAsBytes(fileBytes);
@@ -499,15 +692,10 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
-                label: 'Open Folder',
+                label: '✕',
+                textColor: Colors.white,
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'File location: $filePath\n\nYou can find it in your Downloads folder or file manager.'),
-                      duration: const Duration(seconds: 5),
-                    ),
-                  );
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 },
               ),
             ),
@@ -520,6 +708,13 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           SnackBar(
             content: Text('Error downloading template: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: '✕',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -529,29 +724,30 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
   Future<void> _downloadStudentsTemplate() async {
     try {
       // Create Excel file
-      final excel = Excel.createExcel();
+      final excelFile = excel.Excel.createExcel();
       // Remove the default sheet and create our custom one
-      excel.delete('Sheet1');
-      final sheet = excel['Students Template'];
+      excelFile.delete('Sheet1');
+      final sheet = excelFile['Students Template'];
 
       print('📊 Creating Students Template Excel file');
 
       // Add headers
-      sheet.cell(CellIndex.indexByString('A1')).value =
-          TextCellValue('Student ID');
-      sheet.cell(CellIndex.indexByString('B1')).value =
-          TextCellValue('First Name');
-      sheet.cell(CellIndex.indexByString('C1')).value =
-          TextCellValue('Last Name');
-      sheet.cell(CellIndex.indexByString('D1')).value = TextCellValue('Class');
-      sheet.cell(CellIndex.indexByString('E1')).value =
-          TextCellValue('Date of Birth (YYYY-MM-DD)');
-      sheet.cell(CellIndex.indexByString('F1')).value =
-          TextCellValue('Parent Phone');
-      sheet.cell(CellIndex.indexByString('G1')).value =
-          TextCellValue('Parent Email (Optional)');
-      sheet.cell(CellIndex.indexByString('H1')).value =
-          TextCellValue('Address (Optional)');
+      sheet.cell(excel.CellIndex.indexByString('A1')).value =
+          excel.TextCellValue('Student ID');
+      sheet.cell(excel.CellIndex.indexByString('B1')).value =
+          excel.TextCellValue('First Name');
+      sheet.cell(excel.CellIndex.indexByString('C1')).value =
+          excel.TextCellValue('Last Name');
+      sheet.cell(excel.CellIndex.indexByString('D1')).value =
+          excel.TextCellValue('Class');
+      sheet.cell(excel.CellIndex.indexByString('E1')).value =
+          excel.TextCellValue('Date of Birth (YYYY-MM-DD)');
+      sheet.cell(excel.CellIndex.indexByString('F1')).value =
+          excel.TextCellValue('Parent Phone');
+      sheet.cell(excel.CellIndex.indexByString('G1')).value =
+          excel.TextCellValue('Parent Email (Optional)');
+      sheet.cell(excel.CellIndex.indexByString('H1')).value =
+          excel.TextCellValue('Address (Optional)');
 
       // Add sample data
       final sampleData = [
@@ -598,22 +794,22 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       ];
 
       for (int i = 0; i < sampleData.length; i++) {
-        sheet.cell(CellIndex.indexByString('A${i + 2}')).value =
-            TextCellValue(sampleData[i][0]);
-        sheet.cell(CellIndex.indexByString('B${i + 2}')).value =
-            TextCellValue(sampleData[i][1]);
-        sheet.cell(CellIndex.indexByString('C${i + 2}')).value =
-            TextCellValue(sampleData[i][2]);
-        sheet.cell(CellIndex.indexByString('D${i + 2}')).value =
-            TextCellValue(sampleData[i][3]);
-        sheet.cell(CellIndex.indexByString('E${i + 2}')).value =
-            TextCellValue(sampleData[i][4]);
-        sheet.cell(CellIndex.indexByString('F${i + 2}')).value =
-            TextCellValue(sampleData[i][5]);
-        sheet.cell(CellIndex.indexByString('G${i + 2}')).value =
-            TextCellValue(sampleData[i][6]);
-        sheet.cell(CellIndex.indexByString('H${i + 2}')).value =
-            TextCellValue(sampleData[i][7]);
+        sheet.cell(excel.CellIndex.indexByString('A${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][0]);
+        sheet.cell(excel.CellIndex.indexByString('B${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][1]);
+        sheet.cell(excel.CellIndex.indexByString('C${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][2]);
+        sheet.cell(excel.CellIndex.indexByString('D${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][3]);
+        sheet.cell(excel.CellIndex.indexByString('E${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][4]);
+        sheet.cell(excel.CellIndex.indexByString('F${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][5]);
+        sheet.cell(excel.CellIndex.indexByString('G${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][6]);
+        sheet.cell(excel.CellIndex.indexByString('H${i + 2}')).value =
+            excel.TextCellValue(sampleData[i][7]);
       }
 
       // Try to save to accessible directories
@@ -658,7 +854,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       }
 
       // Save file
-      final fileBytes = excel.save();
+      final fileBytes = excelFile.save();
       if (fileBytes != null) {
         final file = File(filePath);
         await file.writeAsBytes(fileBytes);
@@ -670,15 +866,10 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
-                label: 'Open Folder',
+                label: '✕',
+                textColor: Colors.white,
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'File location: $filePath\n\nYou can find it in your Downloads folder or file manager.'),
-                      duration: const Duration(seconds: 5),
-                    ),
-                  );
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 },
               ),
             ),
@@ -691,6 +882,13 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           SnackBar(
             content: Text('Error downloading template: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: '✕',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -732,7 +930,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               print('💾 Teachers data saved from editor');
               print('📊 Received ${editedData.length} teacher records');
 
-              // Process the edited data
+              // Process and save the edited data
+              final newTeachers = <Map<String, dynamic>>[];
               for (int i = 0; i < editedData.length; i++) {
                 final row = editedData[i];
                 if (row.length >= 4) {
@@ -746,21 +945,43 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
                       lastName.isNotEmpty &&
                       phone.isNotEmpty &&
                       employeeId.isNotEmpty) {
+                    newTeachers.add({
+                      'firstName': firstName,
+                      'lastName': lastName,
+                      'phone': phone,
+                      'employeeId': employeeId,
+                      'email': email,
+                    });
                     print(
                         '✅ Teacher: $firstName $lastName ($employeeId) - $phone${email.isNotEmpty ? ' - $email' : ''}');
                   }
                 }
               }
 
+              // Update saved teachers
+              setState(() {
+                _savedTeachers = newTeachers;
+              });
+
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                        'Successfully processed ${editedData.length} teachers from editor'),
+                        'Successfully saved ${newTeachers.length} teachers'),
                     backgroundColor: Colors.green,
+                    action: SnackBarAction(
+                      label: '✕',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      },
+                    ),
                   ),
                 );
               }
+
+              // Close the Excel editor and return to the bulk upload page
+              Navigator.pop(context);
             },
           ),
         ),
@@ -830,7 +1051,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               print('💾 Students data saved from editor');
               print('📊 Received ${editedData.length} student records');
 
-              // Process the edited data
+              // Process and save the edited data
+              final newStudents = <Map<String, dynamic>>[];
               for (int i = 0; i < editedData.length; i++) {
                 final row = editedData[i];
                 if (row.length >= 6) {
@@ -847,21 +1069,49 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
                       className.isNotEmpty &&
                       dob.isNotEmpty &&
                       parentPhone.isNotEmpty) {
+                    final parentEmail = row.length > 6 ? row[6].trim() : '';
+                    final address = row.length > 7 ? row[7].trim() : '';
+
+                    newStudents.add({
+                      'studentId': studentId,
+                      'firstName': firstName,
+                      'lastName': lastName,
+                      'className': className,
+                      'dob': dob,
+                      'parentPhone': parentPhone,
+                      'parentEmail': parentEmail,
+                      'address': address,
+                    });
                     print(
                         '✅ Student: $firstName $lastName ($studentId) - Class: $className');
                   }
                 }
               }
 
+              // Update saved students
+              setState(() {
+                _savedStudents = newStudents;
+              });
+
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                        'Successfully processed ${editedData.length} students from editor'),
+                        'Successfully saved ${newStudents.length} students'),
                     backgroundColor: Colors.green,
+                    action: SnackBarAction(
+                      label: '✕',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      },
+                    ),
                   ),
                 );
               }
+
+              // Close the Excel editor and return to the bulk upload page
+              Navigator.pop(context);
             },
           ),
         ),
@@ -896,9 +1146,9 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         final file = File(_teachersFilePath!);
         if (await file.exists()) {
           final bytes = await file.readAsBytes();
-          final excel = Excel.decodeBytes(bytes);
-          final sheet =
-              excel['Teachers Template'] ?? excel[excel.tables.keys.first];
+          final excelFile = excel.Excel.decodeBytes(bytes);
+          final sheet = excelFile['Teachers Template'] ??
+              excelFile[excelFile.tables.keys.first];
           print('📋 Found ${sheet.maxRows - 1} teacher records in Excel file');
         }
       }
@@ -910,9 +1160,9 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         final file = File(_studentsFilePath!);
         if (await file.exists()) {
           final bytes = await file.readAsBytes();
-          final excel = Excel.decodeBytes(bytes);
-          final sheet =
-              excel['Students Template'] ?? excel[excel.tables.keys.first];
+          final excelFile = excel.Excel.decodeBytes(bytes);
+          final sheet = excelFile['Students Template'] ??
+              excelFile[excelFile.tables.keys.first];
           print('📋 Found ${sheet.maxRows - 1} student records in Excel file');
         }
       }
@@ -934,10 +1184,18 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🎉 School setup complete! Welcome to your dashboard.'),
+        SnackBar(
+          content: const Text(
+              '🎉 School setup complete! Welcome to your dashboard.'),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: '✕',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
     } catch (e) {
@@ -946,11 +1204,118 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         SnackBar(
           content: Text('Error: ${e.toString()}'),
           backgroundColor: Theme.of(context).colorScheme.error,
+          action: SnackBarAction(
+            label: '✕',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  // Helper methods
+  bool _hasData() {
+    return _savedTeachers.isNotEmpty || _savedStudents.isNotEmpty;
+  }
+
+  void _showTeachersModal() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Saved Teachers (${_savedTeachers.length})'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400.h,
+          child: ListView.builder(
+            itemCount: _savedTeachers.length,
+            itemBuilder: (context, index) {
+              final teacher = _savedTeachers[index];
+              return Card(
+                margin: EdgeInsets.only(bottom: 8.h),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: Text(
+                      teacher['firstName'][0].toUpperCase(),
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  title: Text('${teacher['firstName']} ${teacher['lastName']}'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ID: ${teacher['employeeId']}'),
+                      Text('Phone: ${teacher['phone']}'),
+                      if (teacher['email'].isNotEmpty)
+                        Text('Email: ${teacher['email']}'),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStudentsModal() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Saved Students (${_savedStudents.length})'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 400.h,
+          child: ListView.builder(
+            itemCount: _savedStudents.length,
+            itemBuilder: (context, index) {
+              final student = _savedStudents[index];
+              return Card(
+                margin: EdgeInsets.only(bottom: 8.h),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(context).colorScheme.secondary,
+                    child: Text(
+                      student['firstName'][0].toUpperCase(),
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                  title: Text('${student['firstName']} ${student['lastName']}'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ID: ${student['studentId']}'),
+                      Text('Class: ${student['className']}'),
+                      Text('Parent: ${student['parentPhone']}'),
+                      if (student['parentEmail'].isNotEmpty)
+                        Text('Email: ${student['parentEmail']}'),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/widgets/excel_editor_widget.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/sync/sync_engine.dart';
 import '../../../../shared/data/datasources/local/database_helper.dart';
 import '../../../../shared/data/models/class_model.dart';
 
@@ -36,10 +37,47 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadExistingClasses();
+  }
+
+  @override
   void dispose() {
     _gradeController.dispose();
     _sectionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadExistingClasses() async {
+    try {
+      print('📋 Loading existing classes for school: ${widget.schoolId}');
+      final database = getIt<Database>();
+
+      final classes = await database.query(
+        DatabaseHelper.tableClasses,
+        where: 'school_id = ?',
+        whereArgs: [widget.schoolId],
+        orderBy: 'grade_level ASC, section ASC',
+      );
+
+      if (classes.isNotEmpty) {
+        setState(() {
+          _classes.clear();
+          for (final classData in classes) {
+            _classes.add({
+              'grade': classData['grade_level'] as String,
+              'section': classData['section'] as String,
+            });
+          }
+        });
+        print('✅ Loaded ${_classes.length} existing classes');
+      } else {
+        print('📋 No existing classes found');
+      }
+    } catch (e) {
+      print('❌ Error loading existing classes: $e');
+    }
   }
 
   @override
@@ -48,6 +86,43 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
       appBar: AppBar(
         title: const Text('Set Up Classes'),
         actions: [
+          Tooltip(
+            message:
+                'Add Classes\n\nAdd grade levels and sections for your school. You can add classes manually, import from Excel, or use the in-app editor.',
+            child: IconButton(
+              onPressed: () {
+                // Show the same tooltip content in a dialog for better visibility
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Row(
+                      children: [
+                        Icon(
+                          Icons.class_,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        SizedBox(width: 8.w),
+                        const Text('Add Classes'),
+                      ],
+                    ),
+                    content: const Text(
+                      'Add grade levels and sections for your school. You can add classes manually, import from Excel, or use the in-app editor.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Got it'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              icon: Icon(
+                Icons.info_outline,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
           if (_classes.isNotEmpty)
             TextButton(
               onPressed: _handleSkip,
@@ -58,7 +133,6 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
             Expanded(
               child:
                   _classes.isEmpty ? _buildEmptyState() : _buildClassesList(),
@@ -66,43 +140,6 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
             _buildBottomSection(),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: EdgeInsets.all(24.w),
-      color: Theme.of(context).colorScheme.primaryContainer,
-      child: Row(
-        children: [
-          Icon(
-            Icons.class_,
-            size: 40.sp,
-            color: Theme.of(context).colorScheme.onPrimaryContainer,
-          ),
-          SizedBox(width: 16.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Add Classes',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                ),
-                SizedBox(height: 4.h),
-                Text(
-                  'Add grade levels and sections for your school',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -155,7 +192,7 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
                 ),
               ),
             ),
-            title: Text('Grade ${classItem['grade']}'),
+            title: Text('${classItem['grade']}'),
             subtitle: Text('Section ${classItem['section']}'),
             trailing: IconButton(
               icon: const Icon(Icons.delete_outline),
@@ -319,29 +356,64 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Bulk Upload Classes'),
+        title: const Text('Add Multiple Classes'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Upload an Excel (.xlsx) file with your classes. The file should have the following columns:',
+              'Choose how you want to add multiple classes:',
               style: TextStyle(fontSize: 14),
             ),
-            const SizedBox(height: 12),
-            const Text(
-              '• Grade Level (e.g., 1, 2, 3, KG)\n'
-              '• Section (e.g., A, B, C)',
-              style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
-            ),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _pickExcelFile,
-              icon: const Icon(Icons.upload_file),
-              label: const Text('Select Excel File'),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 40),
+            // Primary option - Edit in App
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _openExcelEditor();
+                },
+                icon: const Icon(Icons.edit),
+                label: const Text('Edit in App'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  minimumSize: const Size(double.infinity, 50),
+                ),
               ),
+            ),
+            const SizedBox(height: 12),
+            // Secondary options
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _downloadTemplate();
+                    },
+                    icon: const Icon(Icons.download),
+                    label: const Text('Download'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _pickExcelFile();
+                    },
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Upload File'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -349,18 +421,6 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
-          ),
-          // TextButton(
-          //   onPressed: _showTemplateContent,
-          //   child: const Text('View Template'),
-          // ),
-          TextButton(
-            onPressed: _downloadTemplate,
-            child: const Text('Download Template'),
-          ),
-          TextButton(
-            onPressed: _openExcelEditor,
-            child: const Text('Edit in App'),
           ),
         ],
       ),
@@ -392,6 +452,13 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
               SnackBar(
                 content: Text('Please select an Excel (.xlsx) file'),
                 backgroundColor: Theme.of(context).colorScheme.error,
+                action: SnackBarAction(
+                  label: '✕',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  },
+                ),
               ),
             );
           }
@@ -406,6 +473,13 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
           SnackBar(
             content: Text('Error picking file: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: '✕',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -429,9 +503,8 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
       final excelFile = excel.Excel.decodeBytes(file.bytes!);
       print('📋 Available sheets: ${excelFile.tables.keys.toList()}');
 
-      final sheet = excelFile['Classes Template'] != null
-          ? excelFile['Classes Template']!
-          : excelFile[excelFile.tables.keys.first]!;
+      final sheet = excelFile['Classes Template'] ??
+          excelFile[excelFile.tables.keys.first];
 
       print('📊 Using sheet: ${excelFile.tables.keys.first}');
       print('📋 Total rows in sheet: ${sheet.maxRows}');
@@ -456,9 +529,9 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
               'grade': grade,
               'section': section,
             });
-            print('✅ Added class: Grade $grade, Section $section');
+            print('✅ Added class: $grade $section');
           } else {
-            print('⚠️ Duplicate class skipped: Grade $grade, Section $section');
+            print('⚠️ Duplicate class skipped: $grade $section');
           }
         }
       }
@@ -472,6 +545,13 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
             SnackBar(
               content: Text('No valid class data found in Excel file'),
               backgroundColor: Theme.of(context).colorScheme.error,
+              action: SnackBarAction(
+                label: '✕',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
             ),
           );
         }
@@ -490,6 +570,13 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
             content: Text(
                 'Successfully imported ${newClasses.length} classes from Excel'),
             backgroundColor: Colors.green,
+            action: SnackBarAction(
+              label: '✕',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -506,6 +593,13 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
           SnackBar(
             content: Text('Error processing Excel file: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: '✕',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -555,15 +649,29 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
             SnackBar(
               content: Text('Successfully added ${newClasses.length} classes'),
               backgroundColor: Colors.green,
+              action: SnackBarAction(
+                label: '✕',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
             ),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No valid classes found in the CSV file'),
+            SnackBar(
+              content: const Text('No valid classes found in the CSV file'),
               backgroundColor: Colors.orange,
+              action: SnackBarAction(
+                label: '✕',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
             ),
           );
         }
@@ -574,6 +682,13 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
           SnackBar(
             content: Text('Error processing CSV: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: '✕',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -582,30 +697,27 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
 
   void _showTemplateContent() {
     const csvContent = '''Grade Level,Section
-Creche,A
-Creche,B
-Nursery,A
-Nursery,B
-KG,A
-KG,B
-1,A
-1,B
-2,A
-2,B
-3,A
-3,B
-4,A
-4,B
-5,A
-5,B
-6,A
-6,B
-7,A
-7,B
-8,A
-8,B
-9,A
-9,B''';
+Nursery 1,A
+Nursery 2,A
+KG 1,A
+KG 2,A
+BS 1,A
+BS 1,B
+BS 2,A
+BS 3,A
+BS 3,B
+BS 4,A
+BS 4,B
+BS 5,A
+BS 5,B
+BS 6,A
+BS 6,B
+BS 7,A
+BS 7,B
+BS 8,A
+BS 8,B
+BS 9,A
+BS 9,B''';
 
     showDialog(
       context: context,
@@ -702,12 +814,10 @@ KG,B
 
       // Add sample data with comprehensive grade levels
       final sampleData = [
-        ['Creche', 'A'],
-        ['Creche', 'B'],
-        ['Nursery', 'A'],
-        ['Nursery', 'B'],
-        ['KG', 'A'],
-        ['KG', 'B'],
+        ['Nursery', '1'],
+        ['Nursery', '2'],
+        ['KG', '1'],
+        ['KG', '2'],
         ['1', 'A'],
         ['1', 'B'],
         ['2', 'A'],
@@ -791,15 +901,10 @@ KG,B
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
-                label: 'Open Folder',
+                label: '✕',
+                textColor: Colors.white,
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          'File location: $filePath\n\nYou can find it in your Downloads folder or file manager.'),
-                      duration: const Duration(seconds: 5),
-                    ),
-                  );
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 },
               ),
             ),
@@ -815,6 +920,13 @@ KG,B
           SnackBar(
             content: Text('Error downloading template: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: SnackBarAction(
+              label: '✕',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -827,12 +939,10 @@ KG,B
     // Create sample data for the editor
     final headers = ['Grade Level', 'Section'];
     final sampleData = [
-      ['Creche', 'A'],
-      ['Creche', 'B'],
-      ['Nursery', 'A'],
-      ['Nursery', 'B'],
-      ['KG', 'A'],
-      ['KG', 'B'],
+      ['Nursery', '1'],
+      ['Nursery', '2'],
+      ['KG', '1'],
+      ['KG', '2'],
       ['1', 'A'],
       ['1', 'B'],
       ['2', 'A'],
@@ -883,7 +993,7 @@ KG,B
                       'grade': grade,
                       'section': section,
                     });
-                    print('✅ Added class: Grade $grade, Section $section');
+                    print('✅ Added class: $grade $section');
                   } else {
                     print(
                         '⚠️ Duplicate class skipped: Grade $grade, Section $section');
@@ -903,10 +1013,20 @@ KG,B
                     content: Text(
                         'Successfully added ${newClasses.length} classes from editor'),
                     backgroundColor: Colors.green,
+                    action: SnackBarAction(
+                      label: '✕',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      },
+                    ),
                   ),
                 );
               }
             }
+
+            // Close the Excel editor and return to the classes setup page
+            Navigator.pop(context);
           },
         ),
       ),
@@ -956,6 +1076,13 @@ KG,B
         SnackBar(
           content: Text('Error: ${e.toString()}'),
           backgroundColor: Theme.of(context).colorScheme.error,
+          action: SnackBarAction(
+            label: '✕',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
       setState(() {
@@ -967,6 +1094,7 @@ KG,B
   Future<void> _saveClassesToDatabase() async {
     try {
       final database = getIt<Database>();
+      final syncEngine = getIt<SyncEngine>();
       final uuid = const Uuid();
       final now = DateTime.now();
       final currentYear = now.year;
@@ -976,7 +1104,7 @@ KG,B
         final grade = cls['grade'] as String;
         final section = cls['section'] as String;
 
-        print('📋 Saving class ${i + 1}: Grade $grade, Section $section');
+        print('📋 Saving class ${i + 1}: $grade $section');
 
         final classModel = ClassModel(
           id: uuid.v4(),
@@ -990,11 +1118,23 @@ KG,B
           updatedAt: now.millisecondsSinceEpoch,
         );
 
+        // Save to local database first
         await database.insert(
           DatabaseHelper.tableClasses,
           classModel.toSqliteJson(),
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
+
+        // Log sync operation for this class
+        await syncEngine.logSyncOperation(
+          schoolId: widget.schoolId,
+          entityType: 'classes',
+          entityId: classModel.id,
+          operation: 'insert',
+        );
+
+        // Sync to Supabase in background (no immediate sync for bulk operations)
+        // Data is logged for sync and will be uploaded by the sync engine
 
         print('✅ Class saved: ${classModel.name}');
       }

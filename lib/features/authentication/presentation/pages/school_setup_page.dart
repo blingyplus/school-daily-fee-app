@@ -467,6 +467,13 @@ class _SchoolSetupPageState extends State<SchoolSetupPage> {
           content: const Text('School created successfully!'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
+          action: SnackBarAction(
+            label: '✕',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
 
@@ -490,6 +497,13 @@ class _SchoolSetupPageState extends State<SchoolSetupPage> {
         SnackBar(
           content: Text('Error: ${e.toString()}'),
           backgroundColor: Theme.of(context).colorScheme.error,
+          action: SnackBarAction(
+            label: '✕',
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
         ),
       );
       setState(() {

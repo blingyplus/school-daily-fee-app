@@ -324,7 +324,7 @@ class SyncEngine {
     }
   }
 
-  /// Convert timestamp fields from milliseconds to ISO strings for Supabase
+  /// Convert timestamp fields from milliseconds to ISO strings and booleans from integers for Supabase
   Map<String, dynamic> _convertTimestampsToIso(Map<String, dynamic> data) {
     final converted = Map<String, dynamic>.from(data);
 
@@ -349,6 +349,13 @@ class SyncEngine {
       'valid_until',
     ];
 
+    // List of boolean fields that need conversion from integers to booleans
+    final booleanFields = [
+      'is_active',
+      'canteen_enabled',
+      'transport_enabled',
+    ];
+
     for (final field in timestampFields) {
       if (converted.containsKey(field) && converted[field] != null) {
         final value = converted[field];
@@ -356,6 +363,16 @@ class SyncEngine {
           // Convert milliseconds to ISO string
           converted[field] =
               DateTime.fromMillisecondsSinceEpoch(value).toIso8601String();
+        }
+      }
+    }
+
+    for (final field in booleanFields) {
+      if (converted.containsKey(field) && converted[field] != null) {
+        final value = converted[field];
+        if (value is int) {
+          // Convert integer to boolean (1 = true, 0 = false)
+          converted[field] = value == 1;
         }
       }
     }

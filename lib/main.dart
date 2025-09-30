@@ -16,6 +16,7 @@ import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'features/authentication/presentation/bloc/auth_state.dart';
 import 'features/authentication/presentation/pages/login_page.dart';
+import 'shared/data/datasources/local/database_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,16 +89,95 @@ class MyApp extends StatelessWidget {
 
           if (!context.mounted) return;
 
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            AppRouter.classesSetup,
-            (route) => false,
-            arguments: {
-              'userId': userId,
-              'schoolId': schoolId,
-              'role': role,
-            },
-          );
+          // Determine which setup page to show based on what's missing
+          final hasClasses =
+              await onboardingService.hasCompletedClassesSetup(schoolId!);
+
+          if (!hasClasses) {
+            // No classes, go to classes setup
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRouter.classesSetup,
+              (route) => false,
+              arguments: {
+                'userId': userId,
+                'schoolId': schoolId,
+                'role': role,
+              },
+            );
+          } else {
+            // Classes exist, check what else is missing
+            final teachers = await onboardingService.database.query(
+              DatabaseHelper.tableSchoolTeachers,
+              where: 'school_id = ?',
+              whereArgs: [schoolId],
+              limit: 1,
+            );
+
+            if (teachers.isEmpty) {
+              // No teachers, go to bulk upload
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRouter.bulkUpload,
+                (route) => false,
+                arguments: {
+                  'userId': userId,
+                  'schoolId': schoolId,
+                  'role': role,
+                },
+              );
+            } else {
+              // Check if fee structure is set up
+              final school = await onboardingService.database.query(
+                DatabaseHelper.tableSchools,
+                where: 'id = ?',
+                whereArgs: [schoolId],
+                limit: 1,
+              );
+
+              if (school.isNotEmpty) {
+                final schoolData = school.first;
+                if (schoolData['canteen_fee'] == null ||
+                    schoolData['transport_fee'] == null) {
+                  // Fee structure not set up, go to fee structure setup
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppRouter.feeStructureSetup,
+                    (route) => false,
+                    arguments: {
+                      'userId': userId,
+                      'schoolId': schoolId,
+                      'role': role,
+                    },
+                  );
+                } else {
+                  // Everything is set up, go to dashboard
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    AppRouter.dashboard,
+                    (route) => false,
+                    arguments: {
+                      'userId': userId,
+                      'schoolId': schoolId,
+                      'role': role,
+                    },
+                  );
+                }
+              } else {
+                // School not found, go to classes setup as fallback
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  AppRouter.classesSetup,
+                  (route) => false,
+                  arguments: {
+                    'userId': userId,
+                    'schoolId': schoolId,
+                    'role': role,
+                  },
+                );
+              }
+            }
+          }
           break;
 
         case OnboardingStep.completed:

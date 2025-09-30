@@ -286,23 +286,13 @@ CREATE POLICY "School access policy" ON public.schools
             SELECT school_id FROM public.admins 
             WHERE user_id = auth.uid()
         )
+        OR
+        -- Allow access for authenticated users during setup
+        auth.uid() IS NOT NULL
     )
     WITH CHECK (
-        -- Allow creation if user is authenticated
+        -- Allow creation and updates if user is authenticated
         auth.uid() IS NOT NULL
-        AND
-        -- Allow creation if user is not already associated with another school
-        -- (This prevents users from creating multiple schools)
-        NOT EXISTS (
-            SELECT 1 FROM public.school_teachers st
-            JOIN public.teachers t ON st.teacher_id = t.id
-            WHERE t.user_id = auth.uid()
-        )
-        AND
-        NOT EXISTS (
-            SELECT 1 FROM public.admins a
-            WHERE a.user_id = auth.uid()
-        )
     );
 
 -- School-teacher association access policy
