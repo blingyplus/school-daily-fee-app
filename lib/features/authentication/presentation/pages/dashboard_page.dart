@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/navigation/app_router.dart';
-import '../../../../shared/presentation/widgets/custom_button.dart';
+import '../../../../core/sync/sync_engine.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -51,6 +52,36 @@ class _DashboardPageState extends State<DashboardPage> {
           backgroundColor: Theme.of(context).colorScheme.background,
           elevation: 0,
           actions: [
+            IconButton(
+              icon: Icon(
+                Icons.bug_report,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              onPressed: () {
+                _debugDatabaseState(context);
+              },
+              tooltip: 'Debug Database',
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.refresh,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              onPressed: () {
+                _resetFailedSyncRecords(context);
+              },
+              tooltip: 'Reset Failed Sync',
+            ),
+            IconButton(
+              icon: Icon(
+                Icons.sync,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              onPressed: () {
+                _triggerManualSync(context);
+              },
+              tooltip: 'Sync Data',
+            ),
             IconButton(
               icon: Icon(
                 Icons.logout,
@@ -114,6 +145,114 @@ class _DashboardPageState extends State<DashboardPage> {
         return 'Reports';
       default:
         return 'Dashboard';
+    }
+  }
+
+  void _resetFailedSyncRecords(BuildContext context) async {
+    try {
+      print('🔄 Reset failed sync records triggered from dashboard');
+      final syncEngine = GetIt.instance<SyncEngine>();
+      await syncEngine.resetFailedSyncRecords();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed sync records reset to pending'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Reset failed sync records failed: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Reset failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _debugDatabaseState(BuildContext context) async {
+    try {
+      print('🔍 Debug database state triggered from dashboard');
+      final syncEngine = GetIt.instance<SyncEngine>();
+      await syncEngine.debugDatabaseState();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Database state logged to console'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Debug database state failed: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Debug failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _triggerManualSync(BuildContext context) async {
+    try {
+      print('🔄 Manual sync triggered from dashboard');
+      final syncEngine = GetIt.instance<SyncEngine>();
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Syncing data...'),
+            ],
+          ),
+        ),
+      );
+
+      // Trigger sync
+      final result = await syncEngine.sync(SyncDirection.upload);
+
+      // Close loading dialog
+      if (context.mounted) {
+        Navigator.of(context).pop();
+
+        // Show result
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.status == SyncStatus.success
+                  ? 'Sync completed successfully! ${result.recordsProcessed} records processed.'
+                  : 'Sync failed: ${result.message}',
+            ),
+            backgroundColor:
+                result.status == SyncStatus.success ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Manual sync failed: $e');
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

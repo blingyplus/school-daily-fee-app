@@ -762,7 +762,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Johnson',
           '1A',
           '2015-03-15',
-          '+233123456789',
+          '+233023456789',
           'parent1@email.com',
           '123 Main St'
         ],
@@ -912,7 +912,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         'Email (Optional)'
       ];
       final sampleData = [
-        ['John', 'Doe', '+233123456789', 'EMP001', 'john.doe@school.com'],
+        ['John', 'Doe', '+233023456789', 'EMP001', 'john.doe@school.com'],
         ['Jane', 'Smith', '+233987654321', 'EMP002', 'jane.smith@school.com'],
         ['Mike', 'Johnson', '+233555666777', 'EMP003', ''],
         [
@@ -1031,7 +1031,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Johnson',
           'Nursery 1 A',
           '2015-03-15',
-          '+233123456789',
+          '+233023456789',
           'parent1@email.com',
           '123 Main St'
         ],
@@ -1039,7 +1039,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'STU002',
           'Bob',
           'Smith',
-          'KG 1 A',
+          'Nursery 2 A',
           '2015-07-22',
           '+233987654321',
           'parent2@email.com',
@@ -1059,7 +1059,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'STU004',
           'Diana',
           'Wilson',
-          'BS 2 A',
+          'BS 1 B',
           '2014-05-30',
           '+233111222333',
           'parent4@email.com',
@@ -1197,7 +1197,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           final bytes = await file.readAsBytes();
           final excelFile = excel.Excel.decodeBytes(bytes);
           final sheet = excelFile['Teachers Template'] ??
-              excelFile[excelFile.tables.keys.first];
+              excelFile[excelFile.tables.keys.first]!;
           print('📋 Found ${sheet.maxRows - 1} teacher records in Excel file');
         }
       }
@@ -1211,7 +1211,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           final bytes = await file.readAsBytes();
           final excelFile = excel.Excel.decodeBytes(bytes);
           final sheet = excelFile['Students Template'] ??
-              excelFile[excelFile.tables.keys.first];
+              excelFile[excelFile.tables.keys.first]!;
           print('📋 Found ${sheet.maxRows - 1} student records in Excel file');
         }
       }
@@ -1392,7 +1392,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           {
             'id': userId,
             'phone_number': teacher['phone'],
-            'is_active': 1,
+            'is_active':
+                1, // Use integer instead of boolean // Use integer instead of boolean
             'created_at': now.millisecondsSinceEpoch,
             'updated_at': now.millisecondsSinceEpoch,
           },
@@ -1422,9 +1423,10 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             'id': schoolTeacherId,
             'school_id': widget.schoolId,
             'teacher_id': teacherId,
-            'role': 'teacher',
+            'role':
+                'staff', // Changed from 'teacher' to 'staff' to match schema constraint
             'assigned_classes': null,
-            'is_active': 1,
+            'is_active': 1, // Use integer instead of boolean
             'assigned_at': now.millisecondsSinceEpoch,
             'created_at': now.millisecondsSinceEpoch,
             'updated_at': now.millisecondsSinceEpoch,
@@ -1482,10 +1484,19 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         print(
             '📋 Saving student ${i + 1}: ${student['firstName']} ${student['lastName']}');
 
-        // Parse date of birth
+        // Parse date of birth with validation
         DateTime? dob;
         try {
           dob = DateTime.parse(student['dob']);
+          // Validate date range (reasonable birth years)
+          final minYear = 1990;
+          final maxYear = DateTime.now().year - 3; // At least 3 years old
+
+          if (dob.year < minYear || dob.year > maxYear) {
+            print(
+                '⚠️ Date out of range for ${student['firstName']}: ${student['dob']} (year: ${dob.year})');
+            dob = DateTime(2010, 1, 1); // Default date
+          }
         } catch (e) {
           print(
               '⚠️ Invalid date format for ${student['firstName']}: ${student['dob']}');
@@ -1524,7 +1535,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             'parent_phone': student['parentPhone'],
             'parent_email': student['parentEmail'] ?? '',
             'address': student['address'] ?? '',
-            'is_active': 1,
+            'is_active': 1, // Use integer instead of boolean
             'enrolled_at': now.millisecondsSinceEpoch,
             'created_at': now.millisecondsSinceEpoch,
             'updated_at': now.millisecondsSinceEpoch,

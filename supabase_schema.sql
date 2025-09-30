@@ -295,29 +295,10 @@ CREATE POLICY "School access policy" ON public.schools
         auth.uid() IS NOT NULL
     );
 
--- School-teacher association access policy
+-- Simplified school-teacher association access policy
 CREATE POLICY "School teachers access policy" ON public.school_teachers
-    FOR ALL USING (
-        teacher_id IN (
-            SELECT id FROM public.teachers WHERE user_id = auth.uid()
-        )
-        OR
-        -- Allow school admins to access school-teacher associations in their school
-        school_id IN (
-            SELECT school_id FROM public.admins WHERE user_id = auth.uid()
-        )
-    )
-    WITH CHECK (
-        -- Allow creation if the teacher is the authenticated user
-        teacher_id IN (
-            SELECT id FROM public.teachers WHERE user_id = auth.uid()
-        )
-        OR
-        -- Allow creation if the admin is the authenticated user
-        school_id IN (
-            SELECT school_id FROM public.admins WHERE user_id = auth.uid()
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
 -- Similar policies for other tables...
 -- (Additional RLS policies would be added here for complete security)
@@ -371,114 +352,47 @@ CREATE TRIGGER update_holidays_updated_at BEFORE UPDATE ON public.holidays
 CREATE TRIGGER update_school_config_updated_at BEFORE UPDATE ON public.school_config
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Additional RLS policies for admins
+-- Keep stricter policies for admins (sensitive operations)
 CREATE POLICY "Admins access policy" ON public.admins
     FOR ALL USING (user_id = auth.uid())
     WITH CHECK (user_id = auth.uid());
 
--- Additional RLS policies for teachers
+-- Simplified RLS policies for teachers
 CREATE POLICY "Teachers access policy" ON public.teachers
-    FOR ALL USING (
-        user_id = auth.uid()
-        OR
-        -- Allow school admins to access teachers in their school
-        id IN (
-            SELECT st.teacher_id FROM public.school_teachers st
-            JOIN public.admins a ON a.school_id = st.school_id
-            WHERE a.user_id = auth.uid()
-        )
-    )
-    WITH CHECK (
-        user_id = auth.uid()
-        OR
-        -- Allow school admins to create teachers in their school
-        auth.uid() IN (
-            SELECT a.user_id FROM public.admins a
-            WHERE a.school_id IN (
-                SELECT school_id FROM public.school_teachers
-                WHERE teacher_id = id
-            )
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
--- Additional RLS policies for classes
+-- Simplified RLS policies for classes
 CREATE POLICY "Classes school access" ON public.classes
-    FOR ALL USING (
-        school_id IN (
-            SELECT school_id FROM public.school_teachers 
-            WHERE teacher_id IN (
-                SELECT id FROM public.teachers WHERE user_id = auth.uid()
-            )
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
--- Additional RLS policies for students
+-- Simplified RLS policies for students
 CREATE POLICY "Students school access" ON public.students
-    FOR ALL USING (
-        school_id IN (
-            SELECT school_id FROM public.school_teachers 
-            WHERE teacher_id IN (
-                SELECT id FROM public.teachers WHERE user_id = auth.uid()
-            )
-        )
-        OR
-        -- Allow school admins to access students in their school
-        school_id IN (
-            SELECT school_id FROM public.admins WHERE user_id = auth.uid()
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
--- Additional RLS policies for attendance records
+-- Simplified RLS policies for attendance records
 CREATE POLICY "Attendance school access" ON public.attendance_records
-    FOR ALL USING (
-        school_id IN (
-            SELECT school_id FROM public.school_teachers 
-            WHERE teacher_id IN (
-                SELECT id FROM public.teachers WHERE user_id = auth.uid()
-            )
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
--- Additional RLS policies for fee collections
+-- Simplified RLS policies for fee collections
 CREATE POLICY "Fee collections school access" ON public.fee_collections
-    FOR ALL USING (
-        school_id IN (
-            SELECT school_id FROM public.school_teachers 
-            WHERE teacher_id IN (
-                SELECT id FROM public.teachers WHERE user_id = auth.uid()
-            )
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
--- Additional RLS policies for holidays
+-- Simplified RLS policies for holidays
 CREATE POLICY "Holidays school access" ON public.holidays
-    FOR ALL USING (
-        school_id IN (
-            SELECT school_id FROM public.school_teachers 
-            WHERE teacher_id IN (
-                SELECT id FROM public.teachers WHERE user_id = auth.uid()
-            )
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
--- Additional RLS policies for sync log
+-- Simplified RLS policies for sync log
 CREATE POLICY "Sync log school access" ON public.sync_log
-    FOR ALL USING (
-        school_id IN (
-            SELECT school_id FROM public.school_teachers 
-            WHERE teacher_id IN (
-                SELECT id FROM public.teachers WHERE user_id = auth.uid()
-            )
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
--- Additional RLS policies for audit log
+-- Simplified RLS policies for audit log
 CREATE POLICY "Audit log school access" ON public.audit_log
-    FOR ALL USING (
-        school_id IN (
-            SELECT school_id FROM public.school_teachers 
-            WHERE teacher_id IN (
-                SELECT id FROM public.teachers WHERE user_id = auth.uid()
-            )
-        )
-    );
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);

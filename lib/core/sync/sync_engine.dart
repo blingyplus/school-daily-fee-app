@@ -78,17 +78,36 @@ class SyncEngine {
 
   /// Initialize the sync engine
   Future<void> initialize() async {
-    if (!env.Environment.useSupabase) return;
+    print('🔄 Initializing sync engine...');
+    print('🔧 Environment.useSupabase: ${env.Environment.useSupabase}');
+
+    if (!env.Environment.useSupabase) {
+      print(
+          '⚠️ Supabase is disabled in environment, sync engine will not start');
+      return;
+    }
+
+    print('✅ Supabase is enabled, starting sync engine...');
 
     // Start periodic sync
     _startPeriodicSync();
 
     // Listen to connectivity changes
     connectivity.onConnectivityChanged.listen((result) {
+      print('📡 Connectivity changed: $result');
       if (result != ConnectivityResult.none) {
+        print('🔄 Triggering sync due to connectivity change...');
         _triggerSync();
       }
     });
+
+    // Trigger initial sync after a short delay
+    Timer(const Duration(seconds: 2), () {
+      print('🔄 Triggering initial sync...');
+      _triggerSync();
+    });
+
+    print('✅ Sync engine initialized successfully');
   }
 
   /// Start periodic sync every 5 minutes
@@ -164,6 +183,8 @@ class SyncEngine {
   Future<int> _uploadPendingChanges() async {
     int recordsProcessed = 0;
 
+    print('🔄 Checking for pending sync records...');
+
     // Get pending sync records
     final pendingRecords = await database.query(
       DatabaseHelper.tableSyncLog,
@@ -171,7 +192,37 @@ class SyncEngine {
       whereArgs: ['pending'],
     );
 
-    for (final record in pendingRecords) {
+    print('📊 Found ${pendingRecords.length} pending sync records');
+
+    // Also check for failed records that we can retry
+    final failedRecords = await database.query(
+      DatabaseHelper.tableSyncLog,
+      where: 'sync_status = ?',
+      whereArgs: ['failed'],
+    );
+
+    print('📊 Found ${failedRecords.length} failed sync records to retry');
+
+    // Combine pending and failed records for processing
+    final recordsToProcess = [...pendingRecords, ...failedRecords];
+    print('📊 Total records to process: ${recordsToProcess.length}');
+
+    // Debug: Check all sync records
+    final allSyncRecords = await database.query(DatabaseHelper.tableSyncLog);
+    print('📊 Total sync records in database: ${allSyncRecords.length}');
+
+    if (allSyncRecords.isNotEmpty) {
+      print('📋 Sync records:');
+      for (final record in allSyncRecords) {
+        print(
+            '  - ${record['entity_type']}:${record['entity_id']} (${record['sync_status']})');
+      }
+    }
+
+    // Sort records by dependency order: users first, then teachers, then school_teachers, then students
+    final sortedRecords = _sortRecordsByDependency(recordsToProcess);
+
+    for (final record in sortedRecords) {
       try {
         await _uploadRecord(record);
         recordsProcessed++;
@@ -187,16 +238,30 @@ class SyncEngine {
           whereArgs: [record['id']],
         );
       } catch (e) {
-        // Mark as failed
+        // Mark as failed with detailed error information
         await database.update(
           DatabaseHelper.tableSyncLog,
           {
             'sync_status': 'failed',
+            'conflict_data': e.toString(), // Store as string instead of Map
           },
           where: 'id = ?',
           whereArgs: [record['id']],
         );
-        print('Failed to upload record ${record['id']}: $e');
+
+        // Log specific error types for better debugging
+        if (e.toString().contains('foreign key constraint')) {
+          print(
+              '❌ Foreign key constraint violation for record ${record['id']}: $e');
+        } else if (e.toString().contains('check constraint')) {
+          print('❌ Check constraint violation for record ${record['id']}: $e');
+        } else if (e
+            .toString()
+            .contains('date/time field value out of range')) {
+          print('❌ Date format error for record ${record['id']}: $e');
+        } else {
+          print('❌ Failed to upload record ${record['id']}: $e');
+        }
       }
     }
 
@@ -316,11 +381,83 @@ class SyncEngine {
       case 'update':
         // Convert timestamps to ISO format for Supabase
         final supabaseData = _convertTimestampsToIso(data);
+
+        // Handle foreign key dependencies
+        if (entityType == 'teachers' && supabaseData.containsKey('user_id')) {
+          // Ensure user exists in Supabase before creating teacher
+          await _ensureUserExistsInSupabase(supabaseData['user_id'] as String);
+        }
+
         await supabaseClient.from(entityType).upsert(supabaseData);
         break;
       case 'delete':
         await supabaseClient.from(entityType).delete().eq('id', entityId);
         break;
+    }
+  }
+
+  /// Sort records by dependency order to avoid foreign key violations
+  List<Map<String, dynamic>> _sortRecordsByDependency(
+      List<Map<String, dynamic>> records) {
+    // Define dependency order (lower number = higher priority)
+    final dependencyOrder = {
+      'users': 1,
+      'schools': 1,
+      'classes': 2,
+      'teachers': 3,
+      'school_teachers': 4,
+      'students': 5,
+      'admins': 3,
+      'attendance_records': 6,
+      'fee_collections': 6,
+      'holidays': 2,
+    };
+
+    final sortedRecords = List<Map<String, dynamic>>.from(records);
+    sortedRecords.sort((a, b) {
+      final aOrder = dependencyOrder[a['entity_type']] ?? 999;
+      final bOrder = dependencyOrder[b['entity_type']] ?? 999;
+      return aOrder.compareTo(bOrder);
+    });
+
+    print('📋 Sorted ${sortedRecords.length} records by dependency order');
+    for (final record in sortedRecords) {
+      final order = dependencyOrder[record['entity_type']] ?? 999;
+      print(
+          '  - ${record['entity_type']}:${record['entity_id']} (order: $order)');
+    }
+
+    return sortedRecords;
+  }
+
+  /// Ensure user exists in Supabase before creating dependent records
+  Future<void> _ensureUserExistsInSupabase(String userId) async {
+    try {
+      // Check if user exists in Supabase
+      final existingUser = await supabaseClient
+          .from('users')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+      if (existingUser == null) {
+        // User doesn't exist in Supabase, get from local database and create
+        final localUser = await database.query(
+          DatabaseHelper.tableUsers,
+          where: 'id = ?',
+          whereArgs: [userId],
+          limit: 1,
+        );
+
+        if (localUser.isNotEmpty) {
+          final userData = _convertTimestampsToIso(localUser.first);
+          await supabaseClient.from('users').upsert(userData);
+          print('✅ Created user in Supabase: $userId');
+        }
+      }
+    } catch (e) {
+      print('❌ Error ensuring user exists in Supabase: $e');
+      throw e;
     }
   }
 
@@ -360,9 +497,24 @@ class SyncEngine {
       if (converted.containsKey(field) && converted[field] != null) {
         final value = converted[field];
         if (value is int) {
-          // Convert milliseconds to ISO string
-          converted[field] =
-              DateTime.fromMillisecondsSinceEpoch(value).toIso8601String();
+          try {
+            // Convert milliseconds to ISO string, but validate the timestamp first
+            final dateTime = DateTime.fromMillisecondsSinceEpoch(value);
+            // Check if the date is reasonable (not too far in the past or future)
+            final now = DateTime.now();
+            final minDate = DateTime(1900);
+            final maxDate = DateTime(2100);
+
+            if (dateTime.isAfter(minDate) && dateTime.isBefore(maxDate)) {
+              converted[field] = dateTime.toIso8601String();
+            } else {
+              // Use current time if the timestamp is invalid
+              converted[field] = now.toIso8601String();
+            }
+          } catch (e) {
+            // Use current time if conversion fails
+            converted[field] = DateTime.now().toIso8601String();
+          }
         }
       }
     }
@@ -413,11 +565,18 @@ class SyncEngine {
     required String entityId,
     required String operation,
   }) async {
-    if (!env.Environment.useSupabase) return;
+    if (!env.Environment.useSupabase) {
+      print(
+          '⚠️ Supabase disabled, not logging sync operation for $entityType:$entityId');
+      return;
+    }
 
     try {
-      await database.insert(DatabaseHelper.tableSyncLog, {
-        'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      final syncLogId = DateTime.now().millisecondsSinceEpoch.toString();
+      print('📝 Logging sync operation: $entityType:$entityId ($operation)');
+
+      final syncLogData = {
+        'id': syncLogId,
         'school_id': schoolId,
         'entity_type': entityType,
         'entity_id': entityId,
@@ -425,9 +584,30 @@ class SyncEngine {
         'timestamp': DateTime.now().millisecondsSinceEpoch,
         'sync_status': 'pending',
         'created_at': DateTime.now().millisecondsSinceEpoch,
-      });
+      };
+
+      print('📋 Sync log data: $syncLogData');
+
+      await database.insert(DatabaseHelper.tableSyncLog, syncLogData);
+
+      print('✅ Sync operation logged successfully: $syncLogId');
+
+      // Verify the record was inserted
+      final insertedRecord = await database.query(
+        DatabaseHelper.tableSyncLog,
+        where: 'id = ?',
+        whereArgs: [syncLogId],
+        limit: 1,
+      );
+
+      if (insertedRecord.isNotEmpty) {
+        print('✅ Verified sync record inserted: ${insertedRecord.first}');
+      } else {
+        print('❌ Sync record not found after insertion!');
+      }
     } catch (e) {
-      print('Failed to log sync operation: $e');
+      print('❌ Failed to log sync operation: $e');
+      print('❌ Error details: ${e.toString()}');
     }
   }
 
@@ -453,6 +633,115 @@ class SyncEngine {
       }
     } catch (e) {
       print('Failed to resolve conflict: $e');
+    }
+  }
+
+  /// Clear failed sync records and reset them to pending
+  Future<void> resetFailedSyncRecords() async {
+    try {
+      print('🔄 Resetting failed sync records to pending...');
+
+      final result = await database.update(
+        DatabaseHelper.tableSyncLog,
+        {
+          'sync_status': 'pending',
+          'conflict_data': null,
+        },
+        where: 'sync_status = ?',
+        whereArgs: ['failed'],
+      );
+
+      print('✅ Reset $result failed sync records to pending status');
+    } catch (e) {
+      print('❌ Error resetting failed sync records: $e');
+    }
+  }
+
+  /// Fix data issues before sync
+  Future<void> fixDataIssues() async {
+    try {
+      print('🔧 Fixing data issues...');
+
+      // Fix role constraint violations in school_teachers
+      final schoolTeacherResult = await database.update(
+        DatabaseHelper.tableSchoolTeachers,
+        {
+          'role': 'staff', // Change 'teacher' to 'staff'
+        },
+        where: 'role = ?',
+        whereArgs: ['teacher'],
+      );
+
+      if (schoolTeacherResult > 0) {
+        print('✅ Fixed $schoolTeacherResult school_teacher role constraints');
+      }
+
+      // Fix date format issues in students (replace invalid dates with current date)
+      final minValidDate = DateTime(2000).millisecondsSinceEpoch;
+      final maxValidDate = DateTime(2030).millisecondsSinceEpoch;
+
+      // Get students with invalid dates
+      final studentsWithInvalidDates = await database.query(
+        DatabaseHelper.tableStudents,
+        where: 'date_of_birth < ? OR date_of_birth > ?',
+        whereArgs: [minValidDate, maxValidDate],
+      );
+
+      for (final student in studentsWithInvalidDates) {
+        await database.update(
+          DatabaseHelper.tableStudents,
+          {
+            'date_of_birth':
+                DateTime(2010).millisecondsSinceEpoch, // Default to 2010
+          },
+          where: 'id = ?',
+          whereArgs: [student['id']],
+        );
+      }
+    } catch (e) {
+      print('❌ Error fixing data issues: $e');
+    }
+  }
+
+  /// Debug method to check database state
+  Future<void> debugDatabaseState() async {
+    try {
+      print('🔍 Debugging database state...');
+
+      // Check sync log table
+      final syncLogRecords = await database.query(DatabaseHelper.tableSyncLog);
+      print('📊 Sync log records: ${syncLogRecords.length}');
+
+      // Check users table
+      final userRecords = await database.query(DatabaseHelper.tableUsers);
+      print('📊 User records: ${userRecords.length}');
+
+      // Check teachers table
+      final teacherRecords = await database.query(DatabaseHelper.tableTeachers);
+      print('📊 Teacher records: ${teacherRecords.length}');
+
+      // Check students table
+      final studentRecords = await database.query(DatabaseHelper.tableStudents);
+      print('📊 Student records: ${studentRecords.length}');
+
+      // Check classes table
+      final classRecords = await database.query(DatabaseHelper.tableClasses);
+      print('📊 Class records: ${classRecords.length}');
+
+      // Check school_teachers table
+      final schoolTeacherRecords =
+          await database.query(DatabaseHelper.tableSchoolTeachers);
+      print('📊 School teacher records: ${schoolTeacherRecords.length}');
+
+      if (syncLogRecords.isNotEmpty) {
+        print('📋 Sync log details:');
+        for (final record in syncLogRecords) {
+          print(
+              '  - ID: ${record['id']}, Type: ${record['entity_type']}, Status: ${record['sync_status']}');
+        }
+      }
+    } catch (e) {
+      print('❌ Error debugging database state: $e');
     }
   }
 

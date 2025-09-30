@@ -214,7 +214,6 @@ class _SchoolSetupPageState extends State<SchoolSetupPage> {
             onChanged: (phone) {
               // Store the complete number with country code
               _contactPhoneComplete = phone.completeNumber;
-              print('Phone number changed: ${phone.completeNumber}');
             },
             validator: (phone) {
               if (phone == null || phone.number.isEmpty) {

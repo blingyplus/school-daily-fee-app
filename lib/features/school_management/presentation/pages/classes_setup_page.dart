@@ -696,7 +696,8 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
   }
 
   void _showTemplateContent() {
-    const csvContent = '''Grade Level,Section
+    const csvContent =
+        '''Grade Level,Section
 Nursery 1,A
 Nursery 2,A
 KG 1,A
@@ -712,12 +713,7 @@ BS 5,A
 BS 5,B
 BS 6,A
 BS 6,B
-BS 7,A
-BS 7,B
-BS 8,A
-BS 8,B
-BS 9,A
-BS 9,B''';
+''';
 
     showDialog(
       context: context,
@@ -814,28 +810,27 @@ BS 9,B''';
 
       // Add sample data with comprehensive grade levels
       final sampleData = [
-        ['Nursery', '1'],
-        ['Nursery', '2'],
-        ['KG', '1'],
-        ['KG', '2'],
-        ['1', 'A'],
-        ['1', 'B'],
-        ['2', 'A'],
-        ['2', 'B'],
-        ['3', 'A'],
-        ['3', 'B'],
-        ['4', 'A'],
-        ['4', 'B'],
-        ['5', 'A'],
-        ['5', 'B'],
-        ['6', 'A'],
-        ['6', 'B'],
-        ['7', 'A'],
-        ['7', 'B'],
-        ['8', 'A'],
-        ['8', 'B'],
-        ['9', 'A'],
-        ['9', 'B'],
+        ['Creche', ''],
+        ['Nursery 1', 'A'],
+        ['Nursery 1', 'B'],
+        ['Nursery 2', 'A'],
+        ['Nursery 2', 'B'],
+        ['KG 1', 'A'],
+        ['KG 1', 'B'],
+        ['KG 2', 'A'],
+        ['KG 2', 'B'],
+        ['BS 1', 'A'],
+        ['BS 1', 'B'],
+        ['BS 2', 'A'],
+        ['BS 2', 'B'],
+        ['BS 3', 'A'],
+        ['BS 3', 'B'],
+        ['BS 4', 'A'],
+        ['BS 4', 'B'],
+        ['BS 5', 'A'],
+        ['BS 5', 'B'],
+        ['BS 6', 'A'],
+        ['BS 6', 'B'],
       ];
 
       for (int i = 0; i < sampleData.length; i++) {
@@ -939,28 +934,27 @@ BS 9,B''';
     // Create sample data for the editor
     final headers = ['Grade Level', 'Section'];
     final sampleData = [
-      ['Nursery', '1'],
-      ['Nursery', '2'],
-      ['KG', '1'],
-      ['KG', '2'],
-      ['1', 'A'],
-      ['1', 'B'],
-      ['2', 'A'],
-      ['2', 'B'],
-      ['3', 'A'],
-      ['3', 'B'],
-      ['4', 'A'],
-      ['4', 'B'],
-      ['5', 'A'],
-      ['5', 'B'],
-      ['6', 'A'],
-      ['6', 'B'],
-      ['7', 'A'],
-      ['7', 'B'],
-      ['8', 'A'],
-      ['8', 'B'],
-      ['9', 'A'],
-      ['9', 'B'],
+      ['Creche', ''],
+      ['Nursery 1', 'A'],
+      ['Nursery 1', 'B'],
+      ['Nursery 2', 'A'],
+      ['Nursery 2', 'B'],
+      ['KG 1', 'A'],
+      ['KG 1', 'B'],
+      ['KG 2', 'A'],
+      ['KG 2', 'B'],
+      ['BS 1', 'A'],
+      ['BS 1', 'B'],
+      ['BS 2', 'A'],
+      ['BS 2', 'B'],
+      ['BS 3', 'A'],
+      ['BS 3', 'B'],
+      ['BS 4', 'A'],
+      ['BS 4', 'B'],
+      ['BS 5', 'A'],
+      ['BS 5', 'B'],
+      ['BS 6', 'A'],
+      ['BS 6', 'B'],
     ];
 
     Navigator.push(
