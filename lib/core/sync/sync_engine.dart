@@ -214,10 +214,14 @@ class SyncEngine {
 
       // Download changes for each entity type
       final entityTypes = [
+        'schools',
+        'teachers',
+        'admins',
+        'school_teachers',
+        'classes',
+        'students',
         'attendance_records',
         'fee_collections',
-        'students',
-        'classes',
         'holidays',
       ];
 
@@ -338,6 +342,11 @@ class SyncEngine {
       'collected_at',
       'recorded_at',
       'holiday_date',
+      'last_login',
+      'otp_expires_at',
+      'enrolled_at',
+      'valid_from',
+      'valid_until',
     ];
 
     for (final field in timestampFields) {
@@ -357,14 +366,22 @@ class SyncEngine {
   /// Get table name for entity type
   String? _getTableName(String entityType) {
     switch (entityType) {
+      case 'schools':
+        return DatabaseHelper.tableSchools;
+      case 'teachers':
+        return DatabaseHelper.tableTeachers;
+      case 'admins':
+        return DatabaseHelper.tableAdmins;
+      case 'school_teachers':
+        return DatabaseHelper.tableSchoolTeachers;
+      case 'classes':
+        return DatabaseHelper.tableClasses;
+      case 'students':
+        return DatabaseHelper.tableStudents;
       case 'attendance_records':
         return DatabaseHelper.tableAttendanceRecords;
       case 'fee_collections':
         return DatabaseHelper.tableFeeCollections;
-      case 'students':
-        return DatabaseHelper.tableStudents;
-      case 'classes':
-        return DatabaseHelper.tableClasses;
       case 'holidays':
         return DatabaseHelper.tableHolidays;
       default:

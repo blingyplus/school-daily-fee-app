@@ -68,6 +68,7 @@ CREATE TABLE public.admins (
     school_id UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
+    photo_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     UNIQUE(user_id, school_id)
@@ -209,6 +210,7 @@ CREATE TABLE public.sync_log (
     operation TEXT NOT NULL CHECK (operation IN ('insert', 'update', 'delete')),
     timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     sync_status TEXT NOT NULL DEFAULT 'pending' CHECK (sync_status IN ('pending', 'synced', 'failed')),
+    synced_at TIMESTAMP WITH TIME ZONE,
     conflict_data JSONB,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
@@ -231,6 +233,8 @@ CREATE TABLE public.audit_log (
 CREATE INDEX idx_users_phone_number ON public.users(phone_number);
 CREATE INDEX idx_schools_code ON public.schools(code);
 CREATE INDEX idx_teachers_user_id ON public.teachers(user_id);
+CREATE INDEX idx_admins_user_id ON public.admins(user_id);
+CREATE INDEX idx_admins_school_id ON public.admins(school_id);
 CREATE INDEX idx_school_teachers_school_id ON public.school_teachers(school_id);
 CREATE INDEX idx_school_teachers_teacher_id ON public.school_teachers(teacher_id);
 CREATE INDEX idx_students_school_id ON public.students(school_id);
@@ -241,6 +245,7 @@ CREATE INDEX idx_attendance_records_student_date ON public.attendance_records(st
 CREATE INDEX idx_fee_collections_school_date ON public.fee_collections(school_id, payment_date);
 CREATE INDEX idx_fee_collections_student_date ON public.fee_collections(student_id, payment_date);
 CREATE INDEX idx_sync_log_school_status ON public.sync_log(school_id, sync_status);
+CREATE INDEX idx_sync_log_entity_type ON public.sync_log(entity_type);
 CREATE INDEX idx_audit_log_school_user ON public.audit_log(school_id, user_id);
 
 -- Row Level Security (RLS) Policies
@@ -335,3 +340,88 @@ CREATE TRIGGER update_holidays_updated_at BEFORE UPDATE ON public.holidays
 
 CREATE TRIGGER update_school_config_updated_at BEFORE UPDATE ON public.school_config
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Additional RLS policies for admins
+CREATE POLICY "Admins can view own data" ON public.admins
+    FOR ALL USING (user_id = auth.uid());
+
+-- Additional RLS policies for teachers
+CREATE POLICY "Teachers can view own data" ON public.teachers
+    FOR ALL USING (user_id = auth.uid());
+
+-- Additional RLS policies for classes
+CREATE POLICY "Classes school access" ON public.classes
+    FOR ALL USING (
+        school_id IN (
+            SELECT school_id FROM public.school_teachers 
+            WHERE teacher_id IN (
+                SELECT id FROM public.teachers WHERE user_id = auth.uid()
+            )
+        )
+    );
+
+-- Additional RLS policies for students
+CREATE POLICY "Students school access" ON public.students
+    FOR ALL USING (
+        school_id IN (
+            SELECT school_id FROM public.school_teachers 
+            WHERE teacher_id IN (
+                SELECT id FROM public.teachers WHERE user_id = auth.uid()
+            )
+        )
+    );
+
+-- Additional RLS policies for attendance records
+CREATE POLICY "Attendance school access" ON public.attendance_records
+    FOR ALL USING (
+        school_id IN (
+            SELECT school_id FROM public.school_teachers 
+            WHERE teacher_id IN (
+                SELECT id FROM public.teachers WHERE user_id = auth.uid()
+            )
+        )
+    );
+
+-- Additional RLS policies for fee collections
+CREATE POLICY "Fee collections school access" ON public.fee_collections
+    FOR ALL USING (
+        school_id IN (
+            SELECT school_id FROM public.school_teachers 
+            WHERE teacher_id IN (
+                SELECT id FROM public.teachers WHERE user_id = auth.uid()
+            )
+        )
+    );
+
+-- Additional RLS policies for holidays
+CREATE POLICY "Holidays school access" ON public.holidays
+    FOR ALL USING (
+        school_id IN (
+            SELECT school_id FROM public.school_teachers 
+            WHERE teacher_id IN (
+                SELECT id FROM public.teachers WHERE user_id = auth.uid()
+            )
+        )
+    );
+
+-- Additional RLS policies for sync log
+CREATE POLICY "Sync log school access" ON public.sync_log
+    FOR ALL USING (
+        school_id IN (
+            SELECT school_id FROM public.school_teachers 
+            WHERE teacher_id IN (
+                SELECT id FROM public.teachers WHERE user_id = auth.uid()
+            )
+        )
+    );
+
+-- Additional RLS policies for audit log
+CREATE POLICY "Audit log school access" ON public.audit_log
+    FOR ALL USING (
+        school_id IN (
+            SELECT school_id FROM public.school_teachers 
+            WHERE teacher_id IN (
+                SELECT id FROM public.teachers WHERE user_id = auth.uid()
+            )
+        )
+    );
