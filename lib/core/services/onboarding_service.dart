@@ -1,18 +1,36 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:injectable/injectable.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../shared/data/datasources/local/database_helper.dart';
 
 @singleton
 class OnboardingService {
   final Database database;
+  final SharedPreferences sharedPreferences;
 
-  OnboardingService({required this.database});
+  OnboardingService({
+    required this.database,
+    required this.sharedPreferences,
+  });
 
   /// Check if user has completed their profile
   Future<bool> hasCompletedProfile(String userId) async {
     try {
-      // Check if user has first_name and last_name in teachers or admins table
+      // Check SharedPreferences for saved profile
+      final savedUserId = sharedPreferences.getString('profile_user_id');
+      final firstName = sharedPreferences.getString('profile_first_name');
+      final lastName = sharedPreferences.getString('profile_last_name');
+
+      if (savedUserId == userId &&
+          firstName != null &&
+          firstName.isNotEmpty &&
+          lastName != null &&
+          lastName.isNotEmpty) {
+        return true;
+      }
+
+      // Check if user has first_name and last_name in teachers table
       final teachers = await database.query(
         DatabaseHelper.tableTeachers,
         where: 'user_id = ?',
@@ -26,20 +44,6 @@ class OnboardingService {
             teacher['last_name'] != null &&
             (teacher['first_name'] as String).isNotEmpty &&
             (teacher['last_name'] as String).isNotEmpty;
-      }
-
-      // Check admins table
-      final admins = await database.query(
-        DatabaseHelper.tableUsers,
-        where: 'id = ?',
-        whereArgs: [userId],
-        limit: 1,
-      );
-
-      if (admins.isNotEmpty) {
-        // For now, if user exists in users table, we check if they have data
-        // In future, we'll have separate profile fields
-        return false; // Will implement proper profile check
       }
 
       return false;
@@ -118,6 +122,21 @@ class OnboardingService {
   /// Get profile completion data
   Future<Map<String, dynamic>?> getProfileData(String userId) async {
     try {
+      // First check SharedPreferences
+      final savedUserId = sharedPreferences.getString('profile_user_id');
+      if (savedUserId == userId) {
+        final firstName = sharedPreferences.getString('profile_first_name');
+        final lastName = sharedPreferences.getString('profile_last_name');
+
+        if (firstName != null && lastName != null) {
+          return {
+            'first_name': firstName,
+            'last_name': lastName,
+            'photo_url': sharedPreferences.getString('profile_photo_url'),
+          };
+        }
+      }
+
       // Check teachers table
       final teachers = await database.query(
         DatabaseHelper.tableTeachers,
@@ -130,8 +149,6 @@ class OnboardingService {
         return teachers.first;
       }
 
-      // Check admins table (when implemented)
-      // For now, return null
       return null;
     } catch (e) {
       print('Error getting profile data: $e');

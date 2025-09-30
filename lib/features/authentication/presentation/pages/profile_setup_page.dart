@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/services/profile_service.dart';
 
 class ProfileSetupPage extends StatefulWidget {
   final String userId;
@@ -207,12 +209,21 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     });
 
     try {
-      // TODO: Save profile to database
+      final profileService = GetIt.instance<ProfileService>();
       final firstName = _firstNameController.text.trim();
       final lastName = _lastNameController.text.trim();
 
-      // For now, navigate to role selection
+      // Save profile data
+      await profileService.saveProfileData(
+        userId: widget.userId,
+        firstName: firstName,
+        lastName: lastName,
+      );
+
+      print('✅ Profile data saved');
+
       if (!mounted) return;
+
       Navigator.pushReplacementNamed(
         context,
         AppRouter.roleSelection,
