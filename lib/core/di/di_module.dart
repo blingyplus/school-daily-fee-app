@@ -10,6 +10,7 @@ import '../constants/environment.dart' as env;
 import '../network/supabase_client.dart';
 import '../sync/sync_engine.dart';
 import '../services/onboarding_service.dart';
+import '../services/profile_service.dart';
 import '../../shared/data/datasources/local/database_helper.dart';
 
 @module
@@ -40,6 +41,18 @@ abstract class DIModule {
       supabaseClient: supabaseClient,
       database: db,
       connectivity: connectivity,
+    );
+  }
+
+  @preResolve
+  @singleton
+  Future<ProfileService> get profileService async {
+    final db = await database;
+    final sp = await sharedPreferences;
+    return ProfileService(
+      database: db,
+      sharedPreferences: sp,
+      supabaseClient: supabaseClient,
     );
   }
 

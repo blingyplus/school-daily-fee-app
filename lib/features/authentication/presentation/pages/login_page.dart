@@ -4,10 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/navigation/app_router.dart';
 import '../../../../shared/presentation/widgets/custom_button.dart';
-import '../../../../shared/presentation/widgets/custom_text_field.dart';
-import '../../../../shared/presentation/widgets/loading_widget.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -48,12 +45,18 @@ class _LoginPageState extends State<LoginPage> {
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Theme.of(context).colorScheme.error,
+                duration: const Duration(seconds: 4),
               ),
             );
           } else if (state is AuthLoading) {
             setState(() {
               _isLoading = true;
             });
+          } else if (state is AuthOTPSent) {
+            setState(() {
+              _isLoading = false;
+            });
+            // Navigation is handled by main.dart BlocListener
           }
         },
         child: SafeArea(

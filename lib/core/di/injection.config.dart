@@ -12,18 +12,18 @@ import 'package:connectivity_plus/connectivity_plus.dart' as _i3;
 import 'package:dio/dio.dart' as _i5;
 import 'package:get_it/get_it.dart' as _i1;
 import 'package:injectable/injectable.dart' as _i2;
-import 'package:shared_preferences/shared_preferences.dart' as _i6;
+import 'package:shared_preferences/shared_preferences.dart' as _i7;
 import 'package:skuupay/core/di/di_module.dart' as _i18;
-import 'package:skuupay/core/services/onboarding_service.dart' as _i12;
-import 'package:skuupay/core/services/profile_service.dart' as _i13;
+import 'package:skuupay/core/services/onboarding_service.dart' as _i13;
+import 'package:skuupay/core/services/profile_service.dart' as _i6;
 import 'package:skuupay/core/services/school_service.dart' as _i14;
-import 'package:skuupay/core/sync/sync_engine.dart' as _i8;
+import 'package:skuupay/core/sync/sync_engine.dart' as _i9;
 import 'package:skuupay/features/authentication/data/datasources/auth_local_datasource.dart'
-    as _i9;
-import 'package:skuupay/features/authentication/data/datasources/auth_remote_datasource.dart'
     as _i10;
-import 'package:skuupay/features/authentication/data/datasources/auth_supabase_datasource.dart'
+import 'package:skuupay/features/authentication/data/datasources/auth_remote_datasource.dart'
     as _i11;
+import 'package:skuupay/features/authentication/data/datasources/auth_supabase_datasource.dart'
+    as _i12;
 import 'package:skuupay/features/authentication/data/repositories/auth_repository_impl.dart'
     as _i16;
 import 'package:skuupay/features/authentication/domain/repositories/auth_repository.dart'
@@ -31,7 +31,7 @@ import 'package:skuupay/features/authentication/domain/repositories/auth_reposit
 import 'package:skuupay/features/authentication/presentation/bloc/auth_bloc.dart'
     as _i17;
 import 'package:sqflite/sqflite.dart' as _i4;
-import 'package:supabase_flutter/supabase_flutter.dart' as _i7;
+import 'package:supabase_flutter/supabase_flutter.dart' as _i8;
 
 extension GetItInjectableX on _i1.GetIt {
 // initializes the registration of main-scope dependencies inside of GetIt
@@ -51,41 +51,42 @@ extension GetItInjectableX on _i1.GetIt {
       preResolve: true,
     );
     gh.singleton<_i5.Dio>(() => dIModule.dio);
-    await gh.singletonAsync<_i6.SharedPreferences>(
+    await gh.singletonAsync<_i6.ProfileService>(
+      () => dIModule.profileService,
+      preResolve: true,
+    );
+    await gh.singletonAsync<_i7.SharedPreferences>(
       () => dIModule.sharedPreferences,
       preResolve: true,
     );
-    gh.singleton<_i7.SupabaseClient>(() => dIModule.supabaseClient);
-    await gh.singletonAsync<_i8.SyncEngine>(
+    gh.singleton<_i8.SupabaseClient>(() => dIModule.supabaseClient);
+    await gh.singletonAsync<_i9.SyncEngine>(
       () => dIModule.syncEngine,
       preResolve: true,
     );
-    gh.lazySingleton<_i9.AuthLocalDataSource>(() => _i9.AuthLocalDataSourceImpl(
-          sharedPreferences: gh<_i6.SharedPreferences>(),
+    gh.lazySingleton<_i10.AuthLocalDataSource>(
+        () => _i10.AuthLocalDataSourceImpl(
+              sharedPreferences: gh<_i7.SharedPreferences>(),
+              database: gh<_i4.Database>(),
+            ));
+    gh.lazySingleton<_i11.AuthRemoteDataSource>(
+        () => _i11.AuthRemoteDataSourceImpl(dio: gh<_i5.Dio>()));
+    gh.lazySingleton<_i12.AuthSupabaseDataSource>(() =>
+        _i12.AuthSupabaseDataSourceImpl(
+            supabaseClient: gh<_i8.SupabaseClient>()));
+    gh.singleton<_i13.OnboardingService>(() => _i13.OnboardingService(
           database: gh<_i4.Database>(),
-        ));
-    gh.lazySingleton<_i10.AuthRemoteDataSource>(
-        () => _i10.AuthRemoteDataSourceImpl(dio: gh<_i5.Dio>()));
-    gh.lazySingleton<_i11.AuthSupabaseDataSource>(() =>
-        _i11.AuthSupabaseDataSourceImpl(
-            supabaseClient: gh<_i7.SupabaseClient>()));
-    gh.singleton<_i12.OnboardingService>(() => _i12.OnboardingService(
-          database: gh<_i4.Database>(),
-          sharedPreferences: gh<_i6.SharedPreferences>(),
-        ));
-    gh.singleton<_i13.ProfileService>(() => _i13.ProfileService(
-          database: gh<_i4.Database>(),
-          sharedPreferences: gh<_i6.SharedPreferences>(),
+          sharedPreferences: gh<_i7.SharedPreferences>(),
         ));
     gh.singleton<_i14.SchoolService>(() => _i14.SchoolService(
           database: gh<_i4.Database>(),
-          supabaseClient: gh<_i7.SupabaseClient>(),
-          syncEngine: gh<_i8.SyncEngine>(),
+          supabaseClient: gh<_i8.SupabaseClient>(),
+          syncEngine: gh<_i9.SyncEngine>(),
         ));
     gh.lazySingleton<_i15.AuthRepository>(() => _i16.AuthRepositoryImpl(
-          remoteDataSource: gh<_i10.AuthRemoteDataSource>(),
-          supabaseDataSource: gh<_i11.AuthSupabaseDataSource>(),
-          localDataSource: gh<_i9.AuthLocalDataSource>(),
+          remoteDataSource: gh<_i11.AuthRemoteDataSource>(),
+          supabaseDataSource: gh<_i12.AuthSupabaseDataSource>(),
+          localDataSource: gh<_i10.AuthLocalDataSource>(),
           connectivity: gh<_i3.Connectivity>(),
         ));
     gh.factory<_i17.AuthBloc>(

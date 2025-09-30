@@ -1,17 +1,19 @@
 import 'package:injectable/injectable.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/data/datasources/local/database_helper.dart';
 
-@singleton
 class ProfileService {
   final Database database;
   final SharedPreferences sharedPreferences;
+  final SupabaseClient supabaseClient;
 
   ProfileService({
     required this.database,
     required this.sharedPreferences,
+    required this.supabaseClient,
   });
 
   /// Save user profile data temporarily (before role selection)
@@ -22,6 +24,18 @@ class ProfileService {
     String? photoUrl,
   }) async {
     try {
+      // Update Supabase user metadata
+      await supabaseClient.auth.updateUser(
+        UserAttributes(
+          data: {
+            'first_name': firstName,
+            'last_name': lastName,
+            'display_name': '$firstName $lastName',
+            if (photoUrl != null) 'photo_url': photoUrl,
+          },
+        ),
+      );
+
       // Save to SharedPreferences for temporary storage
       await sharedPreferences.setString('profile_user_id', userId);
       await sharedPreferences.setString('profile_first_name', firstName);
@@ -30,7 +44,7 @@ class ProfileService {
         await sharedPreferences.setString('profile_photo_url', photoUrl);
       }
 
-      print('✅ Profile data saved temporarily');
+      print('✅ Profile data saved to Supabase and locally');
     } catch (e) {
       print('❌ Error saving profile data: $e');
       throw Exception('Failed to save profile data');

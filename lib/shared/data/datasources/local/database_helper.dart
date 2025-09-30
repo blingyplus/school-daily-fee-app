@@ -5,7 +5,7 @@ import 'package:path/path.dart';
 class DatabaseHelper {
   static Database? _database;
   static const String _databaseName = 'school_fee_app.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   // Table names
   static const String tableUsers = 'users';
@@ -40,7 +40,8 @@ class DatabaseHelper {
 
   Future<void> _onCreate(Database db, int version) async {
     // Create Users table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableUsers (
         id TEXT PRIMARY KEY,
         phone_number TEXT UNIQUE NOT NULL,
@@ -54,14 +55,15 @@ class DatabaseHelper {
     ''');
 
     // Create Schools table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableSchools (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         code TEXT UNIQUE NOT NULL,
-        address TEXT NOT NULL,
-        contact_phone TEXT NOT NULL,
-        contact_email TEXT NOT NULL,
+        address TEXT,
+        contact_phone TEXT,
+        contact_email TEXT,
         subscription_tier TEXT NOT NULL,
         subscription_expires_at INTEGER,
         settings TEXT,
@@ -72,13 +74,14 @@ class DatabaseHelper {
     ''');
 
     // Create Teachers table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableTeachers (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL,
-        employee_id TEXT UNIQUE NOT NULL,
+        employee_id TEXT UNIQUE,
         photo_url TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
@@ -87,7 +90,8 @@ class DatabaseHelper {
     ''');
 
     // Create Classes table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableClasses (
         id TEXT PRIMARY KEY,
         school_id TEXT NOT NULL,
@@ -103,7 +107,8 @@ class DatabaseHelper {
     ''');
 
     // Create Students table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableStudents (
         id TEXT PRIMARY KEY,
         school_id TEXT NOT NULL,
@@ -126,7 +131,8 @@ class DatabaseHelper {
     ''');
 
     // Create School Teachers junction table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableSchoolTeachers (
         id TEXT PRIMARY KEY,
         school_id TEXT NOT NULL,
@@ -143,7 +149,8 @@ class DatabaseHelper {
     ''');
 
     // Create Attendance Records table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableAttendanceRecords (
         id TEXT PRIMARY KEY,
         school_id TEXT NOT NULL,
@@ -166,7 +173,8 @@ class DatabaseHelper {
     ''');
 
     // Create Fee Collections table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableFeeCollections (
         id TEXT PRIMARY KEY,
         school_id TEXT NOT NULL,
@@ -192,7 +200,8 @@ class DatabaseHelper {
     ''');
 
     // Create Student Fee Config table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableStudentFeeConfig (
         id TEXT PRIMARY KEY,
         student_id TEXT NOT NULL,
@@ -208,7 +217,8 @@ class DatabaseHelper {
     ''');
 
     // Create Scholarships table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableScholarships (
         id TEXT PRIMARY KEY,
         student_id TEXT NOT NULL,
@@ -226,7 +236,8 @@ class DatabaseHelper {
     ''');
 
     // Create Holidays table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableHolidays (
         id TEXT PRIMARY KEY,
         school_id TEXT NOT NULL,
@@ -241,7 +252,8 @@ class DatabaseHelper {
     ''');
 
     // Create Sync Log table
-    await db.execute('''
+    await db.execute(
+        '''
       CREATE TABLE $tableSyncLog (
         id TEXT PRIMARY KEY,
         school_id TEXT NOT NULL,
@@ -318,30 +330,45 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    print('🔄 Database upgrade triggered: $oldVersion → $newVersion');
+
     // Handle database upgrades here
-    // For now, we'll just recreate the database
     if (oldVersion < newVersion) {
-      // Drop all tables and recreate
-      final tables = [
-        tableSyncLog,
-        tableHolidays,
-        tableScholarships,
-        tableStudentFeeConfig,
-        tableFeeCollections,
-        tableAttendanceRecords,
-        tableSchoolTeachers,
-        tableStudents,
-        tableClasses,
-        tableTeachers,
-        tableSchools,
-        tableUsers,
-      ];
+      // Version 1 to 2: Fix schools table constraints to match Supabase
+      if (oldVersion < 2) {
+        print('🔄 Upgrading database from version $oldVersion to $newVersion');
+        print('🔄 Fixing schools table constraints to match Supabase schema');
 
-      for (final table in tables) {
-        await db.execute('DROP TABLE IF EXISTS $table');
+        // Drop and recreate schools table with correct nullable constraints
+        await db.execute('DROP TABLE IF EXISTS $tableSchools');
+
+        // Recreate schools table with correct schema
+        await db.execute(
+            '''
+          CREATE TABLE $tableSchools (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            code TEXT UNIQUE NOT NULL,
+            address TEXT,
+            contact_phone TEXT,
+            contact_email TEXT,
+            subscription_tier TEXT NOT NULL,
+            subscription_expires_at INTEGER,
+            settings TEXT,
+            is_active INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+          )
+        ''');
+
+        // Recreate indexes
+        await db
+            .execute('CREATE INDEX idx_schools_code ON $tableSchools (code)');
+        await db.execute(
+            'CREATE INDEX idx_schools_is_active ON $tableSchools (is_active)');
+
+        print('✅ Database upgraded successfully');
       }
-
-      await _onCreate(db, newVersion);
     }
   }
 

@@ -8,6 +8,7 @@ import 'core/di/injection.dart';
 import 'core/navigation/app_router.dart';
 import 'core/navigation/navigation_service.dart';
 import 'core/network/supabase_client.dart';
+import 'core/services/onboarding_service.dart';
 import 'core/sync/sync_engine.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
@@ -15,12 +16,11 @@ import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'features/authentication/presentation/bloc/auth_state.dart';
 import 'features/authentication/presentation/pages/login_page.dart';
-import 'features/authentication/presentation/pages/dashboard_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase
+  // Initialize Supabase first
   await SupabaseClientConfig.initialize();
 
   // Initialize dependency injection
@@ -41,6 +41,93 @@ class MyApp extends StatelessWidget {
   final ThemeProvider themeProvider;
 
   const MyApp({super.key, required this.themeProvider});
+
+  Future<void> _handleOnboardingNavigation(
+      BuildContext context, String userId, String phoneNumber) async {
+    try {
+      final onboardingService = GetIt.instance<OnboardingService>();
+      final nextStep = await onboardingService.getNextStep(userId);
+
+      if (!context.mounted) return;
+
+      switch (nextStep) {
+        case OnboardingStep.profileSetup:
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.profileSetup,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'phoneNumber': phoneNumber,
+            },
+          );
+          break;
+
+        case OnboardingStep.roleSelection:
+          // Get profile data to pass names
+          final profileData = await onboardingService.getProfileData(userId);
+          if (!context.mounted) return;
+
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.roleSelection,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'phoneNumber': phoneNumber,
+              'firstName': profileData?['first_name'] ?? '',
+              'lastName': profileData?['last_name'] ?? '',
+            },
+          );
+          break;
+
+        case OnboardingStep.completed:
+          // User has completed onboarding, go to dashboard
+          final schoolId = await onboardingService.getUserSchool(userId);
+          final role = await onboardingService.getUserRole(userId);
+
+          if (!context.mounted) return;
+
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.dashboard,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'schoolId': schoolId,
+              'role': role,
+            },
+          );
+          break;
+
+        default:
+          // Fallback to profile setup
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.profileSetup,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'phoneNumber': phoneNumber,
+            },
+          );
+      }
+    } catch (e) {
+      print('Error in onboarding navigation: $e');
+      // Fallback to profile setup on error
+      if (context.mounted) {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRouter.profileSetup,
+          (route) => false,
+          arguments: {
+            'userId': userId,
+            'phoneNumber': phoneNumber,
+          },
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +162,10 @@ class MyApp extends StatelessWidget {
                         AppRouter.otpVerification,
                         arguments: {'phoneNumber': state.phoneNumber},
                       );
+                    } else if (state is AuthAuthenticated) {
+                      // Check onboarding status and route accordingly
+                      _handleOnboardingNavigation(
+                          context, state.user.id, state.user.phoneNumber);
                     }
                   },
                   child: BlocBuilder<AuthBloc, AuthState>(
@@ -86,7 +177,12 @@ class MyApp extends StatelessWidget {
                           ),
                         );
                       } else if (state is AuthAuthenticated) {
-                        return const DashboardPage();
+                        // Show loading while checking onboarding status
+                        return const Scaffold(
+                          body: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
                       } else {
                         return const LoginPage();
                       }
