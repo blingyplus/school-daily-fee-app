@@ -51,6 +51,22 @@ class TeacherModel {
     };
   }
 
+  /// Convert to Supabase-compatible JSON (with ISO timestamp strings)
+  Map<String, dynamic> toSupabaseJson() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'first_name': firstName,
+      'last_name': lastName,
+      'employee_id': employeeId,
+      'photo_url': photoUrl,
+      'created_at':
+          DateTime.fromMillisecondsSinceEpoch(createdAt).toIso8601String(),
+      'updated_at':
+          DateTime.fromMillisecondsSinceEpoch(updatedAt).toIso8601String(),
+    };
+  }
+
   /// Create from SQLite JSON
   factory TeacherModel.fromSqliteJson(Map<String, dynamic> json) {
     return TeacherModel(

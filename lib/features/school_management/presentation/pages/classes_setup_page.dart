@@ -361,15 +361,32 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['csv'],
+        allowedExtensions: ['csv', 'xlsx'],
         allowMultiple: false,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
-        if (file.bytes != null) {
-          final csvContent = String.fromCharCodes(file.bytes!);
-          await _processCsvContent(csvContent);
+        final fileName = file.name.toLowerCase();
+
+        if (fileName.endsWith('.csv')) {
+          // Process CSV file
+          if (file.bytes != null) {
+            final csvContent = String.fromCharCodes(file.bytes!);
+            await _processCsvContent(csvContent);
+          }
+        } else if (fileName.endsWith('.xlsx')) {
+          // Process Excel file
+          await _processExcelFile(file);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Please select a CSV or Excel (.xlsx) file'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
         }
       }
     } catch (e) {
@@ -377,6 +394,89 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error picking file: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _processExcelFile(PlatformFile file) async {
+    try {
+      if (file.bytes == null) {
+        throw Exception('File is empty');
+      }
+
+      // Create a temporary file to read the Excel data
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/temp_classes.xlsx');
+      await tempFile.writeAsBytes(file.bytes!);
+
+      // Read Excel file
+      final excelFile = excel.Excel.decodeBytes(file.bytes!);
+      final sheet = excelFile['Classes Template'] ??
+          excelFile[excelFile.tables.keys.first];
+
+      final newClasses = <Map<String, String>>[];
+
+      // Skip header row and process data
+      for (int i = 1; i < sheet.maxRows; i++) {
+        final row = sheet.rows[i];
+        if (row.length < 2) continue;
+
+        final grade = row[0]?.value?.toString().trim() ?? '';
+        final section = row[1]?.value?.toString().trim() ?? '';
+
+        if (grade.isNotEmpty && section.isNotEmpty) {
+          // Check for duplicates
+          final isDuplicate = _classes
+              .any((cls) => cls['grade'] == grade && cls['section'] == section);
+
+          if (!isDuplicate) {
+            newClasses.add({
+              'grade': grade,
+              'section': section,
+            });
+          }
+        }
+      }
+
+      if (newClasses.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No valid class data found in Excel file'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Add new classes
+      setState(() {
+        _classes.addAll(newClasses);
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Successfully imported ${newClasses.length} classes from Excel'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Clean up temp file
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error processing Excel file: $e'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -454,56 +554,93 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
 
   void _showTemplateContent() {
     const csvContent = '''Grade Level,Section
+Creche,A
+Creche,B
+Nursery,A
+Nursery,B
+KG,A
+KG,B
 1,A
 1,B
 2,A
 2,B
 3,A
 3,B
-KG,A
-KG,B''';
+4,A
+4,B
+5,A
+5,B
+6,A
+6,B
+7,A
+7,B
+8,A
+8,B
+9,A
+9,B''';
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Classes Template'),
+        title: Text(
+          'Classes Template',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.titleLarge?.color,
+          ),
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Copy this content and save it as a CSV file:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[800]
+                      : Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[300]!),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[600]!
+                        : Colors.grey[300]!,
+                  ),
                 ),
                 child: SelectableText(
                   csvContent,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 12,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Instructions:',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 '1. Copy the content above\n'
                 '2. Open a text editor (Notepad, etc.)\n'
                 '3. Paste the content\n'
                 '4. Save as "classes.csv"\n'
                 '5. Upload the file back to the app',
-                style: TextStyle(fontSize: 12),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
               ),
             ],
           ),
@@ -522,6 +659,8 @@ KG,B''';
     try {
       // Create Excel file
       final excelFile = excel.Excel.createExcel();
+      // Remove the default sheet and create our custom one
+      excelFile.delete('Sheet1');
       final sheet = excelFile['Classes Template'];
 
       // Add headers
@@ -530,16 +669,32 @@ KG,B''';
       sheet.cell(excel.CellIndex.indexByString('B1')).value =
           excel.TextCellValue('Section');
 
-      // Add sample data
+      // Add sample data with comprehensive grade levels
       final sampleData = [
+        ['Creche', 'A'],
+        ['Creche', 'B'],
+        ['Nursery', 'A'],
+        ['Nursery', 'B'],
+        ['KG', 'A'],
+        ['KG', 'B'],
         ['1', 'A'],
         ['1', 'B'],
         ['2', 'A'],
         ['2', 'B'],
         ['3', 'A'],
         ['3', 'B'],
-        ['KG', 'A'],
-        ['KG', 'B'],
+        ['4', 'A'],
+        ['4', 'B'],
+        ['5', 'A'],
+        ['5', 'B'],
+        ['6', 'A'],
+        ['6', 'B'],
+        ['7', 'A'],
+        ['7', 'B'],
+        ['8', 'A'],
+        ['8', 'B'],
+        ['9', 'A'],
+        ['9', 'B'],
       ];
 
       for (int i = 0; i < sampleData.length; i++) {
@@ -549,45 +704,40 @@ KG,B''';
             excel.TextCellValue(sampleData[i][1]);
       }
 
-      // Try multiple directory options
+      // Try to save to accessible directories
       Directory? directory;
       String? filePath;
+      final fileName = 'classes_template.xlsx';
 
-      // First try Downloads directory
+      // First try external storage Downloads (most accessible)
       try {
-        directory = await getDownloadsDirectory();
-        if (directory != null) {
-          final fileName =
-              'classes_template_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+        directory = Directory('/storage/emulated/0/Download');
+        if (await directory.exists()) {
           filePath = '${directory.path}/$fileName';
         }
       } catch (e) {
-        print('Downloads directory failed: $e');
+        print('External Downloads directory failed: $e');
       }
 
-      // Fallback to app documents directory
-      if (directory == null) {
+      // Fallback to Downloads directory
+      if (directory == null || filePath == null) {
         try {
-          directory = await getApplicationDocumentsDirectory();
-          final fileName =
-              'classes_template_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-          filePath = '${directory.path}/$fileName';
-        } catch (e) {
-          print('Documents directory failed: $e');
-        }
-      }
-
-      // Fallback to external storage
-      if (directory == null) {
-        try {
-          directory = Directory('/storage/emulated/0/Download');
-          if (await directory.exists()) {
-            final fileName =
-                'classes_template_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+          directory = await getDownloadsDirectory();
+          if (directory != null) {
             filePath = '${directory.path}/$fileName';
           }
         } catch (e) {
-          print('External storage failed: $e');
+          print('Downloads directory failed: $e');
+        }
+      }
+
+      // Fallback to Documents directory
+      if (directory == null || filePath == null) {
+        try {
+          directory = await getApplicationDocumentsDirectory();
+          filePath = '${directory.path}/$fileName';
+        } catch (e) {
+          print('Documents directory failed: $e');
         }
       }
 
@@ -604,16 +754,17 @@ KG,B''';
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Template saved to: ${directory.path}'),
+              content: Text('Template saved to Downloads: $fileName'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 5),
               action: SnackBarAction(
-                label: 'Show Path',
+                label: 'Open Folder',
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('File saved at: $filePath'),
-                      duration: const Duration(seconds: 3),
+                      content: Text(
+                          'File location: $filePath\n\nYou can find it in your Downloads folder or file manager.'),
+                      duration: const Duration(seconds: 5),
                     ),
                   );
                 },

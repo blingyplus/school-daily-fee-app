@@ -5,7 +5,7 @@ import 'package:path/path.dart';
 class DatabaseHelper {
   static Database? _database;
   static const String _databaseName = 'school_fee_app.db';
-  static const int _databaseVersion = 2;
+  static const int _databaseVersion = 3;
 
   // Table names
   static const String tableUsers = 'users';
@@ -262,6 +262,7 @@ class DatabaseHelper {
         operation TEXT NOT NULL,
         timestamp INTEGER NOT NULL,
         sync_status TEXT NOT NULL,
+        synced_at INTEGER,
         conflict_data TEXT,
         created_at INTEGER NOT NULL,
         FOREIGN KEY (school_id) REFERENCES $tableSchools (id)
@@ -366,6 +367,18 @@ class DatabaseHelper {
             .execute('CREATE INDEX idx_schools_code ON $tableSchools (code)');
         await db.execute(
             'CREATE INDEX idx_schools_is_active ON $tableSchools (is_active)');
+
+        print('✅ Database upgraded successfully');
+      }
+
+      // Version 2 to 3: Add synced_at column to sync_log table
+      if (oldVersion < 3) {
+        print('🔄 Upgrading database from version $oldVersion to $newVersion');
+        print('🔄 Adding synced_at column to sync_log table');
+
+        // Add synced_at column to sync_log table
+        await db
+            .execute('ALTER TABLE $tableSyncLog ADD COLUMN synced_at INTEGER');
 
         print('✅ Database upgraded successfully');
       }

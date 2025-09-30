@@ -81,6 +81,25 @@ class MyApp extends StatelessWidget {
           );
           break;
 
+        case OnboardingStep.schoolSetup:
+          // User needs to complete school setup (classes, teachers, students)
+          final schoolId = await onboardingService.getUserSchool(userId);
+          final role = await onboardingService.getUserRole(userId);
+
+          if (!context.mounted) return;
+
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.classesSetup,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'schoolId': schoolId,
+              'role': role,
+            },
+          );
+          break;
+
         case OnboardingStep.completed:
           // User has completed onboarding, go to dashboard
           final schoolId = await onboardingService.getUserSchool(userId);

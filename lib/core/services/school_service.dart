@@ -226,9 +226,25 @@ class SchoolService {
       // 3. Sync to Supabase if online
       if (env.Environment.useSupabase) {
         try {
+          // Convert timestamps to ISO format for Supabase
+          final schoolTeacherSupabase =
+              Map<String, dynamic>.from(schoolTeacherData);
+          schoolTeacherSupabase['assigned_at'] =
+              DateTime.fromMillisecondsSinceEpoch(
+                      schoolTeacherData['assigned_at'] as int)
+                  .toIso8601String();
+          schoolTeacherSupabase['created_at'] =
+              DateTime.fromMillisecondsSinceEpoch(
+                      schoolTeacherData['created_at'] as int)
+                  .toIso8601String();
+          schoolTeacherSupabase['updated_at'] =
+              DateTime.fromMillisecondsSinceEpoch(
+                      schoolTeacherData['updated_at'] as int)
+                  .toIso8601String();
+
           await supabaseClient
               .from('school_teachers')
-              .insert(schoolTeacherData);
+              .insert(schoolTeacherSupabase);
           print('✅ Synced to Supabase');
         } catch (e) {
           print('⚠️ Failed to sync to Supabase, will retry later: $e');
@@ -292,16 +308,31 @@ class SchoolService {
     Map<String, dynamic> schoolTeacher,
   ) async {
     try {
-      // Insert school
-      await supabaseClient.from('schools').insert(school.toJson());
+      // Insert school with proper timestamp format
+      await supabaseClient.from('schools').insert(school.toSupabaseJson());
       print('✅ School synced to Supabase');
 
-      // Insert teacher
-      await supabaseClient.from('teachers').insert(teacher.toJson());
+      // Insert teacher with proper timestamp format
+      await supabaseClient.from('teachers').insert(teacher.toSupabaseJson());
       print('✅ Teacher synced to Supabase');
 
+      // Convert school-teacher timestamps to ISO format
+      final schoolTeacherSupabase = Map<String, dynamic>.from(schoolTeacher);
+      schoolTeacherSupabase['assigned_at'] =
+          DateTime.fromMillisecondsSinceEpoch(
+                  schoolTeacher['assigned_at'] as int)
+              .toIso8601String();
+      schoolTeacherSupabase['created_at'] = DateTime.fromMillisecondsSinceEpoch(
+              schoolTeacher['created_at'] as int)
+          .toIso8601String();
+      schoolTeacherSupabase['updated_at'] = DateTime.fromMillisecondsSinceEpoch(
+              schoolTeacher['updated_at'] as int)
+          .toIso8601String();
+
       // Insert school-teacher association
-      await supabaseClient.from('school_teachers').insert(schoolTeacher);
+      await supabaseClient
+          .from('school_teachers')
+          .insert(schoolTeacherSupabase);
       print('✅ School-Teacher association synced to Supabase');
     } catch (e) {
       print('Error syncing to Supabase: $e');

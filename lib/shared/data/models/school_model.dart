@@ -63,6 +63,29 @@ class SchoolModel {
     };
   }
 
+  /// Convert to Supabase-compatible JSON (with ISO timestamp strings)
+  Map<String, dynamic> toSupabaseJson() {
+    return {
+      'id': id,
+      'name': name,
+      'code': code,
+      'address': address,
+      'contact_phone': contactPhone,
+      'contact_email': contactEmail,
+      'subscription_tier': subscriptionTier,
+      'subscription_expires_at': subscriptionExpiresAt != null
+          ? DateTime.fromMillisecondsSinceEpoch(subscriptionExpiresAt!)
+              .toIso8601String()
+          : null,
+      'settings': settings,
+      'is_active': isActive,
+      'created_at':
+          DateTime.fromMillisecondsSinceEpoch(createdAt).toIso8601String(),
+      'updated_at':
+          DateTime.fromMillisecondsSinceEpoch(updatedAt).toIso8601String(),
+    };
+  }
+
   /// Create from SQLite JSON
   factory SchoolModel.fromSqliteJson(Map<String, dynamic> json) {
     return SchoolModel(

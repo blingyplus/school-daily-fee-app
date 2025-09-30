@@ -389,6 +389,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
     try {
       // Create Excel file
       final excel = Excel.createExcel();
+      // Remove the default sheet and create our custom one
+      excel.delete('Sheet1');
       final sheet = excel['Teachers Template'];
 
       // Add headers
@@ -430,15 +432,46 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             TextCellValue(sampleData[i][4]);
       }
 
-      // Get downloads directory
-      final directory = await getDownloadsDirectory();
-      if (directory == null) {
-        throw Exception('Downloads directory not found');
+      // Try to save to accessible directories
+      Directory? directory;
+      String? filePath;
+      final fileName = 'teachers_template.xlsx';
+
+      // First try external storage Downloads (most accessible)
+      try {
+        directory = Directory('/storage/emulated/0/Download');
+        if (await directory.exists()) {
+          filePath = '${directory.path}/$fileName';
+        }
+      } catch (e) {
+        print('External Downloads directory failed: $e');
       }
 
-      final fileName =
-          'teachers_template_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-      final filePath = '${directory.path}/$fileName';
+      // Fallback to Downloads directory
+      if (directory == null || filePath == null) {
+        try {
+          directory = await getDownloadsDirectory();
+          if (directory != null) {
+            filePath = '${directory.path}/$fileName';
+          }
+        } catch (e) {
+          print('Downloads directory failed: $e');
+        }
+      }
+
+      // Fallback to Documents directory
+      if (directory == null || filePath == null) {
+        try {
+          directory = await getApplicationDocumentsDirectory();
+          filePath = '${directory.path}/$fileName';
+        } catch (e) {
+          print('Documents directory failed: $e');
+        }
+      }
+
+      if (directory == null || filePath == null) {
+        throw Exception('No accessible directory found for saving files');
+      }
 
       // Save file
       final fileBytes = excel.save();
@@ -451,7 +484,19 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             SnackBar(
               content: Text('Template saved to Downloads: $fileName'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Open Folder',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'File location: $filePath\n\nYou can find it in your Downloads folder or file manager.'),
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                },
+              ),
             ),
           );
         }
@@ -472,6 +517,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
     try {
       // Create Excel file
       final excel = Excel.createExcel();
+      // Remove the default sheet and create our custom one
+      excel.delete('Sheet1');
       final sheet = excel['Students Template'];
 
       // Add headers
@@ -554,15 +601,46 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             TextCellValue(sampleData[i][7]);
       }
 
-      // Get downloads directory
-      final directory = await getDownloadsDirectory();
-      if (directory == null) {
-        throw Exception('Downloads directory not found');
+      // Try to save to accessible directories
+      Directory? directory;
+      String? filePath;
+      final fileName = 'students_template.xlsx';
+
+      // First try external storage Downloads (most accessible)
+      try {
+        directory = Directory('/storage/emulated/0/Download');
+        if (await directory.exists()) {
+          filePath = '${directory.path}/$fileName';
+        }
+      } catch (e) {
+        print('External Downloads directory failed: $e');
       }
 
-      final fileName =
-          'students_template_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-      final filePath = '${directory.path}/$fileName';
+      // Fallback to Downloads directory
+      if (directory == null || filePath == null) {
+        try {
+          directory = await getDownloadsDirectory();
+          if (directory != null) {
+            filePath = '${directory.path}/$fileName';
+          }
+        } catch (e) {
+          print('Downloads directory failed: $e');
+        }
+      }
+
+      // Fallback to Documents directory
+      if (directory == null || filePath == null) {
+        try {
+          directory = await getApplicationDocumentsDirectory();
+          filePath = '${directory.path}/$fileName';
+        } catch (e) {
+          print('Documents directory failed: $e');
+        }
+      }
+
+      if (directory == null || filePath == null) {
+        throw Exception('No accessible directory found for saving files');
+      }
 
       // Save file
       final fileBytes = excel.save();
@@ -575,7 +653,19 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             SnackBar(
               content: Text('Template saved to Downloads: $fileName'),
               backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'Open Folder',
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'File location: $filePath\n\nYou can find it in your Downloads folder or file manager.'),
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                },
+              ),
             ),
           );
         }

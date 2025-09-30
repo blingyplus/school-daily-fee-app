@@ -156,6 +156,52 @@ class OnboardingService {
     }
   }
 
+  /// Check if school has basic setup (classes, teachers, students)
+  Future<bool> hasCompletedSchoolSetup(String schoolId) async {
+    try {
+      // Check if school has at least one class
+      final classes = await database.query(
+        DatabaseHelper.tableClasses,
+        where: 'school_id = ?',
+        whereArgs: [schoolId],
+        limit: 1,
+      );
+
+      if (classes.isEmpty) {
+        return false;
+      }
+
+      // Check if school has at least one teacher
+      final teachers = await database.query(
+        DatabaseHelper.tableSchoolTeachers,
+        where: 'school_id = ?',
+        whereArgs: [schoolId],
+        limit: 1,
+      );
+
+      if (teachers.isEmpty) {
+        return false;
+      }
+
+      // Check if school has at least one student
+      final students = await database.query(
+        DatabaseHelper.tableStudents,
+        where: 'school_id = ?',
+        whereArgs: [schoolId],
+        limit: 1,
+      );
+
+      if (students.isEmpty) {
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      print('Error checking school setup completion: $e');
+      return false;
+    }
+  }
+
   /// Determine next onboarding step for a user
   Future<OnboardingStep> getNextStep(String userId) async {
     try {
@@ -171,6 +217,13 @@ class OnboardingService {
 
       if (schoolId == null) {
         return OnboardingStep.roleSelection;
+      }
+
+      // Check if school has basic setup (classes, teachers, students)
+      final hasSchoolSetup = await hasCompletedSchoolSetup(schoolId);
+
+      if (!hasSchoolSetup) {
+        return OnboardingStep.schoolSetup;
       }
 
       // User is fully onboarded

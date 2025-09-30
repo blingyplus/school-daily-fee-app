@@ -310,12 +310,48 @@ class SyncEngine {
     switch (operation) {
       case 'insert':
       case 'update':
-        await supabaseClient.from(entityType).upsert(data);
+        // Convert timestamps to ISO format for Supabase
+        final supabaseData = _convertTimestampsToIso(data);
+        await supabaseClient.from(entityType).upsert(supabaseData);
         break;
       case 'delete':
         await supabaseClient.from(entityType).delete().eq('id', entityId);
         break;
     }
+  }
+
+  /// Convert timestamp fields from milliseconds to ISO strings for Supabase
+  Map<String, dynamic> _convertTimestampsToIso(Map<String, dynamic> data) {
+    final converted = Map<String, dynamic>.from(data);
+
+    // List of timestamp fields that need conversion
+    final timestampFields = [
+      'created_at',
+      'updated_at',
+      'assigned_at',
+      'synced_at',
+      'subscription_expires_at',
+      'attendance_date',
+      'payment_date',
+      'coverage_start_date',
+      'coverage_end_date',
+      'collected_at',
+      'recorded_at',
+      'holiday_date',
+    ];
+
+    for (final field in timestampFields) {
+      if (converted.containsKey(field) && converted[field] != null) {
+        final value = converted[field];
+        if (value is int) {
+          // Convert milliseconds to ISO string
+          converted[field] =
+              DateTime.fromMillisecondsSinceEpoch(value).toIso8601String();
+        }
+      }
+    }
+
+    return converted;
   }
 
   /// Get table name for entity type

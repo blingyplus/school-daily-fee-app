@@ -54,5 +54,5 @@ class Environment {
   static const bool enableAnalytics = false;
 
   static const String supabaseToken =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtdmZxaGFvdHphY2tvc3Zib3FzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxNTIxNjEsImV4cCI6MjA3NDcyODE2MX0.MHFRSzIabxExQfaK_KXeYGfiw6d58plRCjbiFL08atE';
+      'sb_publishable_qHAcFjnIhn0-WlP5T9Zu7g_TP5-eMXP';
 }
