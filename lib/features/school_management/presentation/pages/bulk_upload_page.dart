@@ -746,12 +746,10 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       sheet.cell(excel.CellIndex.indexByString('D1')).value =
           excel.TextCellValue('Class');
       sheet.cell(excel.CellIndex.indexByString('E1')).value =
-          excel.TextCellValue('Date of Birth (YYYY-MM-DD)');
-      sheet.cell(excel.CellIndex.indexByString('F1')).value =
           excel.TextCellValue('Parent Phone');
-      sheet.cell(excel.CellIndex.indexByString('G1')).value =
+      sheet.cell(excel.CellIndex.indexByString('F1')).value =
           excel.TextCellValue('Parent Email (Optional)');
-      sheet.cell(excel.CellIndex.indexByString('H1')).value =
+      sheet.cell(excel.CellIndex.indexByString('G1')).value =
           excel.TextCellValue('Address (Optional)');
 
       // Add sample data
@@ -761,7 +759,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Alice',
           'Johnson',
           '1A',
-          '2015-03-15',
           '+233023456789',
           'parent1@email.com',
           '123 Main St'
@@ -771,7 +768,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Bob',
           'Smith',
           '1A',
-          '2015-07-22',
           '+233987654321',
           'parent2@email.com',
           '456 Oak Ave'
@@ -781,7 +777,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Charlie',
           'Brown',
           '1B',
-          '2015-11-08',
           '+233555666777',
           '',
           '789 Pine Rd'
@@ -791,7 +786,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Diana',
           'Wilson',
           '2A',
-          '2014-05-30',
           '+233111222333',
           'parent4@email.com',
           '321 Elm St'
@@ -1019,7 +1013,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         'First Name',
         'Last Name',
         'Class(Grade Section)',
-        'Date of Birth (YYYY-MM-DD)',
         'Parent Phone',
         'Parent Email (Optional)',
         'Address (Optional)'
@@ -1030,7 +1023,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Alice',
           'Johnson',
           'Nursery 1 A',
-          '2015-03-15',
           '+233023456789',
           'parent1@email.com',
           '123 Main St'
@@ -1040,7 +1032,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Bob',
           'Smith',
           'Nursery 2 A',
-          '2015-07-22',
           '+233987654321',
           'parent2@email.com',
           '456 Oak Ave'
@@ -1050,7 +1041,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Charlie',
           'Brown',
           'BS 1 A',
-          '2015-11-08',
           '+233555666777',
           '',
           '789 Pine Rd'
@@ -1060,7 +1050,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'Diana',
           'Wilson',
           'BS 1 B',
-          '2014-05-30',
           '+233111222333',
           'parent4@email.com',
           '321 Elm St'
@@ -1082,29 +1071,26 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               final newStudents = <Map<String, dynamic>>[];
               for (int i = 0; i < editedData.length; i++) {
                 final row = editedData[i];
-                if (row.length >= 6) {
+                if (row.length >= 5) {
                   final studentId = row[0].trim();
                   final firstName = row[1].trim();
                   final lastName = row[2].trim();
                   final className = row[3].trim();
-                  final dob = row[4].trim();
-                  final parentPhone = row[5].trim();
+                  final parentPhone = row[4].trim();
 
                   if (studentId.isNotEmpty &&
                       firstName.isNotEmpty &&
                       lastName.isNotEmpty &&
                       className.isNotEmpty &&
-                      dob.isNotEmpty &&
                       parentPhone.isNotEmpty) {
-                    final parentEmail = row.length > 6 ? row[6].trim() : '';
-                    final address = row.length > 7 ? row[7].trim() : '';
+                    final parentEmail = row.length > 5 ? row[5].trim() : '';
+                    final address = row.length > 6 ? row[6].trim() : '';
 
                     newStudents.add({
                       'studentId': studentId,
                       'firstName': firstName,
                       'lastName': lastName,
                       'className': className,
-                      'dob': dob,
                       'parentPhone': parentPhone,
                       'parentEmail': parentEmail,
                       'address': address,
@@ -1484,25 +1470,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         print(
             '📋 Saving student ${i + 1}: ${student['firstName']} ${student['lastName']}');
 
-        // Parse date of birth with validation
-        DateTime? dob;
-        try {
-          dob = DateTime.parse(student['dob']);
-          // Validate date range (reasonable birth years)
-          final minYear = 1990;
-          final maxYear = DateTime.now().year - 3; // At least 3 years old
-
-          if (dob.year < minYear || dob.year > maxYear) {
-            print(
-                '⚠️ Date out of range for ${student['firstName']}: ${student['dob']} (year: ${dob.year})');
-            dob = DateTime(2010, 1, 1); // Default date
-          }
-        } catch (e) {
-          print(
-              '⚠️ Invalid date format for ${student['firstName']}: ${student['dob']}');
-          dob = DateTime(2010, 1, 1); // Default date
-        }
-
         // Find class ID by class name
         final classes = await database.query(
           DatabaseHelper.tableClasses,
@@ -1531,7 +1498,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             'student_id': student['studentId'],
             'first_name': student['firstName'],
             'last_name': student['lastName'],
-            'date_of_birth': dob.millisecondsSinceEpoch,
+            'date_of_birth': null,
             'parent_phone': student['parentPhone'],
             'parent_email': student['parentEmail'] ?? '',
             'address': student['address'] ?? '',

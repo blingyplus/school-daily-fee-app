@@ -25,20 +25,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     try {
       emit(const AuthLoading());
+      print('🔍 Checking authentication status...');
 
       final isLoggedIn = await authRepository.isLoggedIn();
+      print('🔍 Is logged in: $isLoggedIn');
 
       if (isLoggedIn) {
         final user = await authRepository.getCurrentUser();
         if (user != null) {
+          print('✅ User found, emitting AuthAuthenticated');
           emit(AuthAuthenticated(user: user));
         } else {
+          print('❌ No user found, emitting AuthUnauthenticated');
           emit(const AuthUnauthenticated());
         }
       } else {
+        print('❌ Not logged in, emitting AuthUnauthenticated');
         emit(const AuthUnauthenticated());
       }
     } catch (e) {
+      print('❌ Auth check error: $e');
       emit(AuthError(message: e.toString()));
     }
   }
@@ -47,19 +53,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLoginRequested event,
     Emitter<AuthState> emit,
   ) async {
-    print(
-        '_onAuthLoginRequested called with phone: ${event.phoneNumber}'); // Debug log
+    print('🔄 Login requested for phone: ${event.phoneNumber}');
     try {
       emit(const AuthLoading());
-      print('AuthLoading emitted'); // Debug log
+      print('📱 Requesting OTP...');
 
       await authRepository.requestOTP(event.phoneNumber);
-      print('OTP request completed successfully'); // Debug log
+      print('✅ OTP request completed successfully');
 
       emit(AuthOTPSent(phoneNumber: event.phoneNumber));
-      print('AuthOTPSent emitted'); // Debug log
+      print('📱 AuthOTPSent state emitted');
     } catch (e) {
-      print('Error in _onAuthLoginRequested: $e'); // Debug log
+      print('❌ Error in login request: $e');
       emit(AuthError(message: e.toString()));
     }
   }
@@ -88,11 +93,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     try {
       emit(const AuthLoading());
+      print('🔄 Logging out user...');
 
       await authRepository.logout();
+      print('✅ Logout completed successfully');
 
       emit(const AuthUnauthenticated());
     } catch (e) {
+      print('❌ Logout error: $e');
       emit(AuthError(message: e.toString()));
     }
   }

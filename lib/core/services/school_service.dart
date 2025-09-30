@@ -254,7 +254,35 @@ class SchoolService {
       // 3. Sync to Supabase if online
       if (env.Environment.useSupabase) {
         try {
-          // Convert timestamps to ISO format for Supabase
+          // First, ensure teacher exists in Supabase
+          if (existingTeachers.isEmpty) {
+            // Get the teacher data and sync to Supabase
+            final teacherData = await database.query(
+              DatabaseHelper.tableTeachers,
+              where: 'id = ?',
+              whereArgs: [finalTeacherId],
+              limit: 1,
+            );
+
+            if (teacherData.isNotEmpty) {
+              // Convert timestamps to ISO format for Supabase
+              final teacherSupabase =
+                  Map<String, dynamic>.from(teacherData.first);
+              teacherSupabase['created_at'] =
+                  DateTime.fromMillisecondsSinceEpoch(
+                          teacherData.first['created_at'] as int)
+                      .toIso8601String();
+              teacherSupabase['updated_at'] =
+                  DateTime.fromMillisecondsSinceEpoch(
+                          teacherData.first['updated_at'] as int)
+                      .toIso8601String();
+
+              await supabaseClient.from('teachers').insert(teacherSupabase);
+              print('✅ Teacher synced to Supabase');
+            }
+          }
+
+          // Then sync school-teacher association
           final schoolTeacherSupabase =
               Map<String, dynamic>.from(schoolTeacherData);
           schoolTeacherSupabase['assigned_at'] =
@@ -273,7 +301,7 @@ class SchoolService {
           await supabaseClient
               .from('school_teachers')
               .insert(schoolTeacherSupabase);
-          print('✅ Synced to Supabase');
+          print('✅ School-Teacher association synced to Supabase');
         } catch (e) {
           print('⚠️ Failed to sync to Supabase, will retry later: $e');
         }

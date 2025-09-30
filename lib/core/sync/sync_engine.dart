@@ -433,6 +433,12 @@ class SyncEngine {
   /// Ensure user exists in Supabase before creating dependent records
   Future<void> _ensureUserExistsInSupabase(String userId) async {
     try {
+      // Debug: Check authentication state
+      final currentUser = supabaseClient.auth.currentUser;
+      print('🔐 Current authenticated user: ${currentUser?.id}');
+      print(
+          '🔐 Auth session exists: ${supabaseClient.auth.currentSession != null}');
+
       // Check if user exists in Supabase
       final existingUser = await supabaseClient
           .from('users')
@@ -451,9 +457,13 @@ class SyncEngine {
 
         if (localUser.isNotEmpty) {
           final userData = _convertTimestampsToIso(localUser.first);
+          print('📝 Attempting to create user in Supabase: $userId');
+          print('📝 User data: $userData');
           await supabaseClient.from('users').upsert(userData);
           print('✅ Created user in Supabase: $userId');
         }
+      } else {
+        print('✅ User already exists in Supabase: $userId');
       }
     } catch (e) {
       print('❌ Error ensuring user exists in Supabase: $e');

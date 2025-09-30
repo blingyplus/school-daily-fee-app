@@ -134,6 +134,12 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       await sharedPreferences.remove('access_token');
       await sharedPreferences.remove('refresh_token');
 
+      // Clear profile data from SharedPreferences
+      await sharedPreferences.remove('profile_user_id');
+      await sharedPreferences.remove('profile_first_name');
+      await sharedPreferences.remove('profile_last_name');
+      await sharedPreferences.remove('profile_photo_url');
+
       // Deactivate current user in database
       await database.update(
         DatabaseHelper.tableUsers,
@@ -141,6 +147,8 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
         where: 'is_active = ?',
         whereArgs: [1],
       );
+
+      print('✅ All user data cleared from local storage');
     } catch (e) {
       print('Error clearing user data: $e');
       throw Exception('Failed to clear user data');

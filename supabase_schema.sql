@@ -266,9 +266,10 @@ ALTER TABLE public.sync_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for multi-tenancy
--- Users can only access their own data
-CREATE POLICY "Users can view own data" ON public.users
-    FOR ALL USING (auth.uid()::text = id::text);
+-- Allow authenticated users to manage users (for teacher onboarding)
+CREATE POLICY "Allow authenticated users to manage users" ON public.users
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
 
 -- School access policy - allows creation and access to associated schools
 CREATE POLICY "School access policy" ON public.schools

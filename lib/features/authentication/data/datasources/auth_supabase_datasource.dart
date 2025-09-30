@@ -132,11 +132,13 @@ class AuthSupabaseDataSourceImpl implements AuthSupabaseDataSource {
   @override
   Future<void> logout(String accessToken) async {
     try {
+      // Sign out from Supabase (this clears the session)
       await supabaseClient.auth.signOut();
+      print('✅ Supabase session cleared');
     } catch (e) {
       // Logout should not fail even if the server request fails
       // The local session will be cleared regardless
-      print('Logout request failed: $e');
+      print('❌ Supabase logout request failed: $e');
     }
   }
 
