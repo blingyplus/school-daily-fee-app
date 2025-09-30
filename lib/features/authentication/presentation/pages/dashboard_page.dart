@@ -9,6 +9,10 @@ import '../../../../core/sync/sync_engine.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
+import '../../../student_management/presentation/pages/students_list_page.dart';
+import '../../../student_management/presentation/bloc/student_bloc.dart';
+import '../../../attendance/presentation/pages/class_selection_page.dart';
+import '../../../fee_collection/presentation/pages/fee_collection_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -24,7 +28,7 @@ class _DashboardPageState extends State<DashboardPage> {
     const DashboardHomePage(),
     const StudentsPage(),
     const AttendancePage(),
-    const FeeCollectionPage(),
+    const FeeCollectionTab(),
     const ReportsPage(),
   ];
 
@@ -673,14 +677,18 @@ class DashboardHomePage extends StatelessWidget {
   }
 }
 
-// Placeholder pages for other tabs
+// Students page with actual implementation
 class StudentsPage extends StatelessWidget {
   const StudentsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Students Page - Coming Soon'),
+    // TODO: Get schoolId from auth state
+    const schoolId = 'temp-school-id'; // This should come from auth state
+
+    return BlocProvider(
+      create: (context) => GetIt.instance<StudentBloc>(),
+      child: const StudentsListPage(schoolId: schoolId),
     );
   }
 }
@@ -690,20 +698,22 @@ class AttendancePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Attendance Page - Coming Soon'),
-    );
+    // TODO: Get schoolId from auth state
+    const schoolId = 'temp-school-id'; // This should come from auth state
+
+    return const ClassSelectionPage(schoolId: schoolId);
   }
 }
 
-class FeeCollectionPage extends StatelessWidget {
-  const FeeCollectionPage({super.key});
+class FeeCollectionTab extends StatelessWidget {
+  const FeeCollectionTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Fee Collection Page - Coming Soon'),
-    );
+    // TODO: Get schoolId from auth state
+    const schoolId = 'temp-school-id'; // This should come from auth state
+
+    return const FeeCollectionPage(schoolId: schoolId);
   }
 }
 
