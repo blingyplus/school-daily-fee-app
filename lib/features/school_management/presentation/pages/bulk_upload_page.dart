@@ -7,6 +7,11 @@ import 'dart:io';
 
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/widgets/excel_editor_widget.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/sync/sync_engine.dart';
+import '../../../../shared/data/datasources/local/database_helper.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 class BulkUploadPage extends StatefulWidget {
   final String schoolId;
@@ -613,7 +618,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
 
       // Add sample data
       final sampleData = [
-        ['John', 'Doe', '+233123456789', 'EMP001', 'john.doe@school.com'],
+        ['John', 'Doe', '+233023456789', 'EMP001', 'john.doe@school.com'],
         ['Jane', 'Smith', '+233987654321', 'EMP002', 'jane.smith@school.com'],
         ['Michael', 'Johnson', '+233555666777', 'EMP003', ''],
         [
@@ -926,7 +931,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             title: 'Teachers Template',
             headers: headers,
             initialData: sampleData,
-            onSave: (editedData) {
+            onSave: (editedData) async {
               print('💾 Teachers data saved from editor');
               print('📊 Received ${editedData.length} teacher records');
 
@@ -958,26 +963,48 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
                 }
               }
 
-              // Update saved teachers
-              setState(() {
-                _savedTeachers = newTeachers;
-              });
+              try {
+                // Save teachers to database
+                await _saveTeachersToDatabase(newTeachers);
 
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        'Successfully saved ${newTeachers.length} teachers'),
-                    backgroundColor: Colors.green,
-                    action: SnackBarAction(
-                      label: '✕',
-                      textColor: Colors.white,
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      },
+                // Update saved teachers
+                setState(() {
+                  _savedTeachers = newTeachers;
+                });
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Successfully saved ${newTeachers.length} teachers'),
+                      backgroundColor: Colors.green,
+                      action: SnackBarAction(
+                        label: '✕',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        },
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
+              } catch (e) {
+                print('❌ Error saving teachers: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error saving teachers: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                      action: SnackBarAction(
+                        label: '✕',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        },
+                      ),
+                    ),
+                  );
+                }
               }
 
               // Close the Excel editor and return to the bulk upload page
@@ -991,7 +1018,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         'Student ID',
         'First Name',
         'Last Name',
-        'Class',
+        'Class(Grade Section)',
         'Date of Birth (YYYY-MM-DD)',
         'Parent Phone',
         'Parent Email (Optional)',
@@ -1002,7 +1029,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'STU001',
           'Alice',
           'Johnson',
-          '1A',
+          'Nursery 1 A',
           '2015-03-15',
           '+233123456789',
           'parent1@email.com',
@@ -1012,7 +1039,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'STU002',
           'Bob',
           'Smith',
-          '1A',
+          'KG 1 A',
           '2015-07-22',
           '+233987654321',
           'parent2@email.com',
@@ -1022,7 +1049,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'STU003',
           'Charlie',
           'Brown',
-          '1B',
+          'BS 1 A',
           '2015-11-08',
           '+233555666777',
           '',
@@ -1032,7 +1059,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'STU004',
           'Diana',
           'Wilson',
-          '2A',
+          'BS 2 A',
           '2014-05-30',
           '+233111222333',
           'parent4@email.com',
@@ -1047,7 +1074,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             title: 'Students Template',
             headers: headers,
             initialData: sampleData,
-            onSave: (editedData) {
+            onSave: (editedData) async {
               print('💾 Students data saved from editor');
               print('📊 Received ${editedData.length} student records');
 
@@ -1088,26 +1115,48 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
                 }
               }
 
-              // Update saved students
-              setState(() {
-                _savedStudents = newStudents;
-              });
+              try {
+                // Save students to database
+                await _saveStudentsToDatabase(newStudents);
 
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        'Successfully saved ${newStudents.length} students'),
-                    backgroundColor: Colors.green,
-                    action: SnackBarAction(
-                      label: '✕',
-                      textColor: Colors.white,
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      },
+                // Update saved students
+                setState(() {
+                  _savedStudents = newStudents;
+                });
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Successfully saved ${newStudents.length} students'),
+                      backgroundColor: Colors.green,
+                      action: SnackBarAction(
+                        label: '✕',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        },
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
+              } catch (e) {
+                print('❌ Error saving students: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error saving students: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                      action: SnackBarAction(
+                        label: '✕',
+                        textColor: Colors.white,
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        },
+                      ),
+                    ),
+                  );
+                }
               }
 
               // Close the Excel editor and return to the bulk upload page
@@ -1317,5 +1366,188 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _saveTeachersToDatabase(
+      List<Map<String, dynamic>> teachers) async {
+    try {
+      final database = getIt<Database>();
+      final syncEngine = getIt<SyncEngine>();
+      final uuid = const Uuid();
+      final now = DateTime.now();
+
+      print('💾 Saving ${teachers.length} teachers to database...');
+
+      for (int i = 0; i < teachers.length; i++) {
+        final teacher = teachers[i];
+        final teacherId = uuid.v4();
+        final userId = uuid.v4();
+
+        print(
+            '📋 Saving teacher ${i + 1}: ${teacher['firstName']} ${teacher['lastName']}');
+
+        // Create user record first
+        await database.insert(
+          DatabaseHelper.tableUsers,
+          {
+            'id': userId,
+            'phone_number': teacher['phone'],
+            'is_active': 1,
+            'created_at': now.millisecondsSinceEpoch,
+            'updated_at': now.millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
+        // Create teacher record
+        await database.insert(
+          DatabaseHelper.tableTeachers,
+          {
+            'id': teacherId,
+            'user_id': userId,
+            'first_name': teacher['firstName'],
+            'last_name': teacher['lastName'],
+            'employee_id': teacher['employeeId'],
+            'created_at': now.millisecondsSinceEpoch,
+            'updated_at': now.millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
+        // Create school-teacher association
+        final schoolTeacherId = uuid.v4();
+        await database.insert(
+          DatabaseHelper.tableSchoolTeachers,
+          {
+            'id': schoolTeacherId,
+            'school_id': widget.schoolId,
+            'teacher_id': teacherId,
+            'role': 'teacher',
+            'assigned_classes': null,
+            'is_active': 1,
+            'assigned_at': now.millisecondsSinceEpoch,
+            'created_at': now.millisecondsSinceEpoch,
+            'updated_at': now.millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
+        // Log sync operations
+        await syncEngine.logSyncOperation(
+          schoolId: widget.schoolId,
+          entityType: 'users',
+          entityId: userId,
+          operation: 'insert',
+        );
+
+        await syncEngine.logSyncOperation(
+          schoolId: widget.schoolId,
+          entityType: 'teachers',
+          entityId: teacherId,
+          operation: 'insert',
+        );
+
+        await syncEngine.logSyncOperation(
+          schoolId: widget.schoolId,
+          entityType: 'school_teachers',
+          entityId: schoolTeacherId,
+          operation: 'insert',
+        );
+
+        print(
+            '✅ Teacher saved: ${teacher['firstName']} ${teacher['lastName']}');
+      }
+
+      print('✅ All ${teachers.length} teachers saved to database');
+    } catch (e) {
+      print('❌ Error saving teachers: $e');
+      throw Exception('Failed to save teachers: $e');
+    }
+  }
+
+  Future<void> _saveStudentsToDatabase(
+      List<Map<String, dynamic>> students) async {
+    try {
+      final database = getIt<Database>();
+      final syncEngine = getIt<SyncEngine>();
+      final uuid = const Uuid();
+      final now = DateTime.now();
+
+      print('💾 Saving ${students.length} students to database...');
+
+      for (int i = 0; i < students.length; i++) {
+        final student = students[i];
+        final studentId = uuid.v4();
+
+        print(
+            '📋 Saving student ${i + 1}: ${student['firstName']} ${student['lastName']}');
+
+        // Parse date of birth
+        DateTime? dob;
+        try {
+          dob = DateTime.parse(student['dob']);
+        } catch (e) {
+          print(
+              '⚠️ Invalid date format for ${student['firstName']}: ${student['dob']}');
+          dob = DateTime(2010, 1, 1); // Default date
+        }
+
+        // Find class ID by class name
+        final classes = await database.query(
+          DatabaseHelper.tableClasses,
+          where: 'school_id = ? AND name = ?',
+          whereArgs: [widget.schoolId, student['className']],
+          limit: 1,
+        );
+
+        String? classId;
+        if (classes.isNotEmpty) {
+          classId = classes.first['id'] as String;
+        } else {
+          print(
+              '⚠️ Class not found: ${student['className']} for student ${student['firstName']}');
+          // Use a default class or skip this student
+          continue;
+        }
+
+        // Create student record
+        await database.insert(
+          DatabaseHelper.tableStudents,
+          {
+            'id': studentId,
+            'school_id': widget.schoolId,
+            'class_id': classId,
+            'student_id': student['studentId'],
+            'first_name': student['firstName'],
+            'last_name': student['lastName'],
+            'date_of_birth': dob.millisecondsSinceEpoch,
+            'parent_phone': student['parentPhone'],
+            'parent_email': student['parentEmail'] ?? '',
+            'address': student['address'] ?? '',
+            'is_active': 1,
+            'enrolled_at': now.millisecondsSinceEpoch,
+            'created_at': now.millisecondsSinceEpoch,
+            'updated_at': now.millisecondsSinceEpoch,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+
+        // Log sync operation
+        await syncEngine.logSyncOperation(
+          schoolId: widget.schoolId,
+          entityType: 'students',
+          entityId: studentId,
+          operation: 'insert',
+        );
+
+        print(
+            '✅ Student saved: ${student['firstName']} ${student['lastName']}');
+      }
+
+      print('✅ All ${students.length} students saved to database');
+    } catch (e) {
+      print('❌ Error saving students: $e');
+      throw Exception('Failed to save students: $e');
+    }
   }
 }

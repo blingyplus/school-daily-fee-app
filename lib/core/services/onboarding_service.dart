@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import '../../shared/data/datasources/local/database_helper.dart';
 
@@ -272,13 +273,41 @@ class OnboardingService {
 
         if (school.isNotEmpty) {
           final schoolData = school.first;
-          // Check if fee structure is configured
-          if (schoolData['canteen_fee'] == null ||
-              schoolData['transport_fee'] == null) {
-            // Fee structure not set up, go to fee structure setup
-            return OnboardingStep
-                .schoolSetup; // This will route to fee structure
+          final settingsJson = schoolData['settings'] as String?;
+
+          if (settingsJson != null && settingsJson.isNotEmpty) {
+            try {
+              final settings = jsonDecode(settingsJson);
+              final feeStructure = settings['fee_structure'];
+
+              // Check if fee structure is configured
+              if (feeStructure != null &&
+                  feeStructure['canteen_fee'] != null &&
+                  feeStructure['transport_fee'] != null) {
+                // Fee structure is configured, check if we need bulk upload
+                final students = await database.query(
+                  DatabaseHelper.tableStudents,
+                  where: 'school_id = ?',
+                  whereArgs: [schoolId],
+                  limit: 1,
+                );
+
+                if (students.isEmpty) {
+                  // No students, go to bulk upload
+                  return OnboardingStep
+                      .schoolSetup; // This will route to bulk upload
+                }
+
+                // Everything is set up
+                return OnboardingStep.completed;
+              }
+            } catch (e) {
+              print('Error parsing school settings: $e');
+            }
           }
+
+          // Fee structure not set up, go to fee structure setup
+          return OnboardingStep.schoolSetup; // This will route to fee structure
         }
 
         // If we reach here, everything is set up

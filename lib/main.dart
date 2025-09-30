@@ -17,6 +17,7 @@ import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'features/authentication/presentation/bloc/auth_state.dart';
 import 'features/authentication/presentation/pages/login_page.dart';
 import 'shared/data/datasources/local/database_helper.dart';
+import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -137,8 +138,22 @@ class MyApp extends StatelessWidget {
 
               if (school.isNotEmpty) {
                 final schoolData = school.first;
-                if (schoolData['canteen_fee'] == null ||
-                    schoolData['transport_fee'] == null) {
+                final settingsJson = schoolData['settings'] as String?;
+
+                bool feeStructureConfigured = false;
+                if (settingsJson != null && settingsJson.isNotEmpty) {
+                  try {
+                    final settings = jsonDecode(settingsJson);
+                    final feeStructure = settings['fee_structure'];
+                    feeStructureConfigured = feeStructure != null &&
+                        feeStructure['canteen_fee'] != null &&
+                        feeStructure['transport_fee'] != null;
+                  } catch (e) {
+                    print('Error parsing school settings: $e');
+                  }
+                }
+
+                if (!feeStructureConfigured) {
                   // Fee structure not set up, go to fee structure setup
                   Navigator.pushNamedAndRemoveUntil(
                     context,
@@ -151,17 +166,39 @@ class MyApp extends StatelessWidget {
                     },
                   );
                 } else {
-                  // Everything is set up, go to dashboard
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    AppRouter.dashboard,
-                    (route) => false,
-                    arguments: {
-                      'userId': userId,
-                      'schoolId': schoolId,
-                      'role': role,
-                    },
+                  // Check if students exist
+                  final students = await onboardingService.database.query(
+                    DatabaseHelper.tableStudents,
+                    where: 'school_id = ?',
+                    whereArgs: [schoolId],
+                    limit: 1,
                   );
+
+                  if (students.isEmpty) {
+                    // No students, go to bulk upload
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      AppRouter.bulkUpload,
+                      (route) => false,
+                      arguments: {
+                        'userId': userId,
+                        'schoolId': schoolId,
+                        'role': role,
+                      },
+                    );
+                  } else {
+                    // Everything is set up, go to dashboard
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      AppRouter.dashboard,
+                      (route) => false,
+                      arguments: {
+                        'userId': userId,
+                        'schoolId': schoolId,
+                        'role': role,
+                      },
+                    );
+                  }
                 }
               } else {
                 // School not found, go to classes setup as fallback

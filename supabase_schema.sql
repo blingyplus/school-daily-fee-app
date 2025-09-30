@@ -301,6 +301,11 @@ CREATE POLICY "School teachers access policy" ON public.school_teachers
         teacher_id IN (
             SELECT id FROM public.teachers WHERE user_id = auth.uid()
         )
+        OR
+        -- Allow school admins to access school-teacher associations in their school
+        school_id IN (
+            SELECT school_id FROM public.admins WHERE user_id = auth.uid()
+        )
     )
     WITH CHECK (
         -- Allow creation if the teacher is the authenticated user
@@ -373,8 +378,28 @@ CREATE POLICY "Admins access policy" ON public.admins
 
 -- Additional RLS policies for teachers
 CREATE POLICY "Teachers access policy" ON public.teachers
-    FOR ALL USING (user_id = auth.uid())
-    WITH CHECK (user_id = auth.uid());
+    FOR ALL USING (
+        user_id = auth.uid()
+        OR
+        -- Allow school admins to access teachers in their school
+        id IN (
+            SELECT st.teacher_id FROM public.school_teachers st
+            JOIN public.admins a ON a.school_id = st.school_id
+            WHERE a.user_id = auth.uid()
+        )
+    )
+    WITH CHECK (
+        user_id = auth.uid()
+        OR
+        -- Allow school admins to create teachers in their school
+        auth.uid() IN (
+            SELECT a.user_id FROM public.admins a
+            WHERE a.school_id IN (
+                SELECT school_id FROM public.school_teachers
+                WHERE teacher_id = id
+            )
+        )
+    );
 
 -- Additional RLS policies for classes
 CREATE POLICY "Classes school access" ON public.classes
@@ -395,6 +420,11 @@ CREATE POLICY "Students school access" ON public.students
             WHERE teacher_id IN (
                 SELECT id FROM public.teachers WHERE user_id = auth.uid()
             )
+        )
+        OR
+        -- Allow school admins to access students in their school
+        school_id IN (
+            SELECT school_id FROM public.admins WHERE user_id = auth.uid()
         )
     );
 
