@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get_it/get_it.dart';
 import 'dart:async';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/navigation/app_router.dart';
-import '../../../../shared/presentation/widgets/custom_button.dart';
-import '../../../../shared/presentation/widgets/custom_text_field.dart';
-import '../../../../shared/presentation/widgets/loading_widget.dart';
+import '../../../../core/services/onboarding_service.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -89,11 +88,8 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
             setState(() {
               _isLoading = false;
             });
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRouter.dashboard,
-              (route) => false,
-            );
+            // Check onboarding status and route accordingly
+            _handleOnboardingNavigation(state.user.id, state.user.phoneNumber);
           } else if (state is AuthError) {
             setState(() {
               _isLoading = false;
@@ -206,12 +202,24 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
         children: [
           _buildOTPInputFields(),
           SizedBox(height: 32.h),
-          CustomButton(
-            text: 'Verify OTP',
+          ElevatedButton(
             onPressed: _isLoading ? null : _handleOTPVerification,
-            isLoading: _isLoading,
-            isFullWidth: true,
-            icon: Icons.check,
+            style: ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(vertical: 16.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+            ),
+            child: _isLoading
+                ? SizedBox(
+                    height: 20.h,
+                    width: 20.h,
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Verify OTP'),
           ),
         ],
       ),
@@ -341,5 +349,92 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
     context.read<AuthBloc>().add(
           AuthOTPResendRequested(phoneNumber: widget.phoneNumber),
         );
+  }
+
+  Future<void> _handleOnboardingNavigation(
+      String userId, String phoneNumber) async {
+    try {
+      final onboardingService = GetIt.instance<OnboardingService>();
+      final nextStep = await onboardingService.getNextStep(userId);
+
+      if (!mounted) return;
+
+      switch (nextStep) {
+        case OnboardingStep.profileSetup:
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.profileSetup,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'phoneNumber': phoneNumber,
+            },
+          );
+          break;
+
+        case OnboardingStep.roleSelection:
+          // Get profile data to pass names
+          final profileData = await onboardingService.getProfileData(userId);
+          if (!mounted) return;
+
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.roleSelection,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'phoneNumber': phoneNumber,
+              'firstName': profileData?['first_name'] ?? '',
+              'lastName': profileData?['last_name'] ?? '',
+            },
+          );
+          break;
+
+        case OnboardingStep.completed:
+          // User has completed onboarding, go to dashboard
+          final schoolId = await onboardingService.getUserSchool(userId);
+          final role = await onboardingService.getUserRole(userId);
+
+          if (!mounted) return;
+
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.dashboard,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'schoolId': schoolId,
+              'role': role,
+            },
+          );
+          break;
+
+        default:
+          // Default to profile setup
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.profileSetup,
+            (route) => false,
+            arguments: {
+              'userId': userId,
+              'phoneNumber': phoneNumber,
+            },
+          );
+      }
+    } catch (e) {
+      print('Error in onboarding navigation: $e');
+      // Default to profile setup on error
+      if (!mounted) return;
+
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRouter.profileSetup,
+        (route) => false,
+        arguments: {
+          'userId': userId,
+          'phoneNumber': phoneNumber,
+        },
+      );
+    }
   }
 }

@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../constants/environment.dart' as env;
 import '../network/supabase_client.dart';
 import '../sync/sync_engine.dart';
+import '../services/onboarding_service.dart';
 import '../../shared/data/datasources/local/database_helper.dart';
 
 @module

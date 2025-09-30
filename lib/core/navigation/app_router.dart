@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../features/authentication/presentation/pages/login_page.dart';
 import '../../features/authentication/presentation/pages/otp_verification_page.dart';
+import '../../features/authentication/presentation/pages/profile_setup_page.dart';
+import '../../features/authentication/presentation/pages/role_selection_page.dart';
+import '../../features/authentication/presentation/pages/school_setup_page.dart';
+import '../../features/authentication/presentation/pages/school_join_page.dart';
 import '../../features/authentication/presentation/pages/dashboard_page.dart';
 
 class AppRouter {
   static const String login = '/login';
   static const String otpVerification = '/otp-verification';
+  static const String profileSetup = '/profile-setup';
+  static const String roleSelection = '/role-selection';
+  static const String schoolSetup = '/school-setup';
+  static const String schoolJoin = '/school-join';
   static const String dashboard = '/dashboard';
   static const String studentsList = '/students';
   static const String studentDetails = '/students/details';
@@ -29,6 +37,52 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => OTPVerificationPage(
             phoneNumber: args?['phoneNumber'] ?? '',
+          ),
+          settings: settings,
+        );
+
+      case profileSetup:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => ProfileSetupPage(
+            userId: args?['userId'] ?? '',
+            phoneNumber: args?['phoneNumber'] ?? '',
+          ),
+          settings: settings,
+        );
+
+      case roleSelection:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => RoleSelectionPage(
+            userId: args?['userId'] ?? '',
+            phoneNumber: args?['phoneNumber'] ?? '',
+            firstName: args?['firstName'] ?? '',
+            lastName: args?['lastName'] ?? '',
+          ),
+          settings: settings,
+        );
+
+      case schoolSetup:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => SchoolSetupPage(
+            userId: args?['userId'] ?? '',
+            phoneNumber: args?['phoneNumber'] ?? '',
+            firstName: args?['firstName'] ?? '',
+            lastName: args?['lastName'] ?? '',
+          ),
+          settings: settings,
+        );
+
+      case schoolJoin:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => SchoolJoinPage(
+            userId: args?['userId'] ?? '',
+            phoneNumber: args?['phoneNumber'] ?? '',
+            firstName: args?['firstName'] ?? '',
+            lastName: args?['lastName'] ?? '',
           ),
           settings: settings,
         );
