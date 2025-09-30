@@ -6,6 +6,7 @@ import 'package:excel/excel.dart' as excel;
 import 'dart:io';
 
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/widgets/excel_editor_widget.dart';
 
 class ClassesSetupPage extends StatefulWidget {
   final String schoolId;
@@ -319,7 +320,7 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Upload a CSV file with your classes. The file should have the following columns:',
+              'Upload an Excel (.xlsx) file with your classes. The file should have the following columns:',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 12),
@@ -330,9 +331,9 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _pickCsvFile,
+              onPressed: _pickExcelFile,
               icon: const Icon(Icons.upload_file),
-              label: const Text('Select CSV File'),
+              label: const Text('Select Excel File'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 40),
               ),
@@ -344,24 +345,29 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: _showTemplateContent,
-            child: const Text('View Template'),
-          ),
+          // TextButton(
+          //   onPressed: _showTemplateContent,
+          //   child: const Text('View Template'),
+          // ),
           TextButton(
             onPressed: _downloadTemplate,
             child: const Text('Download Template'),
+          ),
+          TextButton(
+            onPressed: _openExcelEditor,
+            child: const Text('Edit in App'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _pickCsvFile() async {
+  Future<void> _pickExcelFile() async {
     try {
+      print('📁 Starting Excel file picker for classes...');
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['csv', 'xlsx'],
+        allowedExtensions: ['xlsx'],
         allowMultiple: false,
       );
 
@@ -369,27 +375,27 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
         final file = result.files.first;
         final fileName = file.name.toLowerCase();
 
-        if (fileName.endsWith('.csv')) {
-          // Process CSV file
-          if (file.bytes != null) {
-            final csvContent = String.fromCharCodes(file.bytes!);
-            await _processCsvContent(csvContent);
-          }
-        } else if (fileName.endsWith('.xlsx')) {
+        print('📄 Selected file: $fileName');
+
+        if (fileName.endsWith('.xlsx')) {
           // Process Excel file
+          print('📊 Processing Excel file for classes...');
           await _processExcelFile(file);
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Please select a CSV or Excel (.xlsx) file'),
+                content: Text('Please select an Excel (.xlsx) file'),
                 backgroundColor: Theme.of(context).colorScheme.error,
               ),
             );
           }
         }
+      } else {
+        print('❌ No file selected');
       }
     } catch (e) {
+      print('❌ Error picking file: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -403,6 +409,7 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
 
   Future<void> _processExcelFile(PlatformFile file) async {
     try {
+      print('📊 Processing Excel file: ${file.name}');
       if (file.bytes == null) {
         throw Exception('File is empty');
       }
@@ -411,11 +418,17 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
       final tempDir = await getTemporaryDirectory();
       final tempFile = File('${tempDir.path}/temp_classes.xlsx');
       await tempFile.writeAsBytes(file.bytes!);
+      print('📁 Created temporary file: ${tempFile.path}');
 
       // Read Excel file
       final excelFile = excel.Excel.decodeBytes(file.bytes!);
+      print('📋 Available sheets: ${excelFile.tables.keys.toList()}');
+
       final sheet = excelFile['Classes Template'] ??
           excelFile[excelFile.tables.keys.first];
+
+      print('📊 Using sheet: ${excelFile.tables.keys.first}');
+      print('📋 Total rows in sheet: ${sheet.maxRows}');
 
       final newClasses = <Map<String, String>>[];
 
@@ -437,11 +450,17 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
               'grade': grade,
               'section': section,
             });
+            print('✅ Added class: Grade $grade, Section $section');
+          } else {
+            print('⚠️ Duplicate class skipped: Grade $grade, Section $section');
           }
         }
       }
 
+      print('📊 Total new classes found: ${newClasses.length}');
+
       if (newClasses.isEmpty) {
+        print('❌ No valid class data found in Excel file');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -458,6 +477,7 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
         _classes.addAll(newClasses);
       });
 
+      print('✅ Successfully imported ${newClasses.length} classes from Excel');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -471,8 +491,10 @@ class _ClassesSetupPageState extends State<ClassesSetupPage> {
       // Clean up temp file
       if (await tempFile.exists()) {
         await tempFile.delete();
+        print('🗑️ Cleaned up temporary file');
       }
     } catch (e) {
+      print('❌ Error processing Excel file: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -657,11 +679,14 @@ KG,B
 
   Future<void> _downloadTemplate() async {
     try {
+      print('📊 Creating Classes Template Excel file...');
       // Create Excel file
       final excelFile = excel.Excel.createExcel();
       // Remove the default sheet and create our custom one
       excelFile.delete('Sheet1');
       final sheet = excelFile['Classes Template'];
+
+      print('📋 Created sheet: Classes Template');
 
       // Add headers
       sheet.cell(excel.CellIndex.indexByString('A1')).value =
@@ -746,10 +771,12 @@ KG,B
       }
 
       // Save file
+      print('💾 Saving template to: $filePath');
       final fileBytes = excelFile.save();
       if (fileBytes != null) {
         final file = File(filePath);
         await file.writeAsBytes(fileBytes);
+        print('✅ Template saved successfully: $fileName');
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -772,8 +799,11 @@ KG,B
             ),
           );
         }
+      } else {
+        print('❌ Failed to save template - no bytes generated');
       }
     } catch (e) {
+      print('❌ Error downloading template: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -783,6 +813,98 @@ KG,B
         );
       }
     }
+  }
+
+  void _openExcelEditor() {
+    print('📊 Opening Excel editor for classes...');
+
+    // Create sample data for the editor
+    final headers = ['Grade Level', 'Section'];
+    final sampleData = [
+      ['Creche', 'A'],
+      ['Creche', 'B'],
+      ['Nursery', 'A'],
+      ['Nursery', 'B'],
+      ['KG', 'A'],
+      ['KG', 'B'],
+      ['1', 'A'],
+      ['1', 'B'],
+      ['2', 'A'],
+      ['2', 'B'],
+      ['3', 'A'],
+      ['3', 'B'],
+      ['4', 'A'],
+      ['4', 'B'],
+      ['5', 'A'],
+      ['5', 'B'],
+      ['6', 'A'],
+      ['6', 'B'],
+      ['7', 'A'],
+      ['7', 'B'],
+      ['8', 'A'],
+      ['8', 'B'],
+      ['9', 'A'],
+      ['9', 'B'],
+    ];
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ExcelEditorWidget(
+          title: 'Classes Template',
+          headers: headers,
+          initialData: sampleData,
+          onSave: (editedData) {
+            print('💾 Classes data saved from editor');
+            print('📊 Received ${editedData.length} rows');
+
+            // Process the edited data and add to classes
+            final newClasses = <Map<String, String>>[];
+
+            for (int i = 0; i < editedData.length; i++) {
+              final row = editedData[i];
+              if (row.length >= 2) {
+                final grade = row[0].trim();
+                final section = row[1].trim();
+
+                if (grade.isNotEmpty && section.isNotEmpty) {
+                  // Check for duplicates
+                  final isDuplicate = _classes.any((cls) =>
+                      cls['grade'] == grade && cls['section'] == section);
+
+                  if (!isDuplicate) {
+                    newClasses.add({
+                      'grade': grade,
+                      'section': section,
+                    });
+                    print('✅ Added class: Grade $grade, Section $section');
+                  } else {
+                    print(
+                        '⚠️ Duplicate class skipped: Grade $grade, Section $section');
+                  }
+                }
+              }
+            }
+
+            if (newClasses.isNotEmpty) {
+              setState(() {
+                _classes.addAll(newClasses);
+              });
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'Successfully added ${newClasses.length} classes from editor'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            }
+          },
+        ),
+      ),
+    );
   }
 
   void _handleSkip() {
@@ -804,14 +926,21 @@ KG,B
 
     try {
       // TODO: Save classes to database
-      print('✅ Saving ${_classes.length} classes');
+      print('✅ Saving ${_classes.length} classes to database...');
+      for (int i = 0; i < _classes.length; i++) {
+        final cls = _classes[i];
+        print(
+            '📋 Class ${i + 1}: Grade ${cls['grade']}, Section ${cls['section']}');
+      }
 
       // Simulate save
       await Future.delayed(const Duration(milliseconds: 500));
+      print('✅ Classes saved successfully');
 
       if (!mounted) return;
 
       // Navigate to fee structure setup
+      print('🚀 Navigating to fee structure setup...');
       Navigator.pushReplacementNamed(
         context,
         AppRouter.feeStructureSetup,
@@ -822,6 +951,7 @@ KG,B
         },
       );
     } catch (e) {
+      print('❌ Error in _handleContinue: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

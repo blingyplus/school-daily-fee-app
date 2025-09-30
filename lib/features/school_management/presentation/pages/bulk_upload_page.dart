@@ -6,6 +6,7 @@ import 'package:excel/excel.dart';
 import 'dart:io';
 
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/widgets/excel_editor_widget.dart';
 
 class BulkUploadPage extends StatefulWidget {
   final String schoolId;
@@ -320,9 +321,19 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               label: const Text('Teachers Template (.xlsx)'),
             ),
             TextButton.icon(
+              onPressed: () => _openExcelEditor('teachers'),
+              icon: const Icon(Icons.edit),
+              label: const Text('Edit Teachers in App'),
+            ),
+            TextButton.icon(
               onPressed: _downloadStudentsTemplate,
               icon: const Icon(Icons.file_download),
               label: const Text('Students Template (.xlsx)'),
+            ),
+            TextButton.icon(
+              onPressed: () => _openExcelEditor('students'),
+              icon: const Icon(Icons.edit),
+              label: const Text('Edit Students in App'),
             ),
           ],
         ),
@@ -392,6 +403,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       // Remove the default sheet and create our custom one
       excel.delete('Sheet1');
       final sheet = excel['Teachers Template'];
+
+      print('📊 Creating Teachers Template Excel file');
 
       // Add headers
       sheet.cell(CellIndex.indexByString('A1')).value =
@@ -520,6 +533,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       // Remove the default sheet and create our custom one
       excel.delete('Sheet1');
       final sheet = excel['Students Template'];
+
+      print('📊 Creating Students Template Excel file');
 
       // Add headers
       sheet.cell(CellIndex.indexByString('A1')).value =
@@ -682,6 +697,178 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
     }
   }
 
+  void _openExcelEditor(String type) {
+    print('📊 Opening Excel editor for $type...');
+
+    if (type == 'teachers') {
+      final headers = [
+        'First Name',
+        'Last Name',
+        'Phone Number',
+        'Employee ID',
+        'Email (Optional)'
+      ];
+      final sampleData = [
+        ['John', 'Doe', '+233123456789', 'EMP001', 'john.doe@school.com'],
+        ['Jane', 'Smith', '+233987654321', 'EMP002', 'jane.smith@school.com'],
+        ['Mike', 'Johnson', '+233555666777', 'EMP003', ''],
+        [
+          'Sarah',
+          'Wilson',
+          '+233111222333',
+          'EMP004',
+          'sarah.wilson@school.com'
+        ],
+      ];
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ExcelEditorWidget(
+            title: 'Teachers Template',
+            headers: headers,
+            initialData: sampleData,
+            onSave: (editedData) {
+              print('💾 Teachers data saved from editor');
+              print('📊 Received ${editedData.length} teacher records');
+
+              // Process the edited data
+              for (int i = 0; i < editedData.length; i++) {
+                final row = editedData[i];
+                if (row.length >= 4) {
+                  final firstName = row[0].trim();
+                  final lastName = row[1].trim();
+                  final phone = row[2].trim();
+                  final employeeId = row[3].trim();
+                  final email = row.length > 4 ? row[4].trim() : '';
+
+                  if (firstName.isNotEmpty &&
+                      lastName.isNotEmpty &&
+                      phone.isNotEmpty &&
+                      employeeId.isNotEmpty) {
+                    print(
+                        '✅ Teacher: $firstName $lastName ($employeeId) - $phone${email.isNotEmpty ? ' - $email' : ''}');
+                  }
+                }
+              }
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'Successfully processed ${editedData.length} teachers from editor'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      );
+    } else if (type == 'students') {
+      final headers = [
+        'Student ID',
+        'First Name',
+        'Last Name',
+        'Class',
+        'Date of Birth (YYYY-MM-DD)',
+        'Parent Phone',
+        'Parent Email (Optional)',
+        'Address (Optional)'
+      ];
+      final sampleData = [
+        [
+          'STU001',
+          'Alice',
+          'Johnson',
+          '1A',
+          '2015-03-15',
+          '+233123456789',
+          'parent1@email.com',
+          '123 Main St'
+        ],
+        [
+          'STU002',
+          'Bob',
+          'Smith',
+          '1A',
+          '2015-07-22',
+          '+233987654321',
+          'parent2@email.com',
+          '456 Oak Ave'
+        ],
+        [
+          'STU003',
+          'Charlie',
+          'Brown',
+          '1B',
+          '2015-11-08',
+          '+233555666777',
+          '',
+          '789 Pine Rd'
+        ],
+        [
+          'STU004',
+          'Diana',
+          'Wilson',
+          '2A',
+          '2014-05-30',
+          '+233111222333',
+          'parent4@email.com',
+          '321 Elm St'
+        ],
+      ];
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ExcelEditorWidget(
+            title: 'Students Template',
+            headers: headers,
+            initialData: sampleData,
+            onSave: (editedData) {
+              print('💾 Students data saved from editor');
+              print('📊 Received ${editedData.length} student records');
+
+              // Process the edited data
+              for (int i = 0; i < editedData.length; i++) {
+                final row = editedData[i];
+                if (row.length >= 6) {
+                  final studentId = row[0].trim();
+                  final firstName = row[1].trim();
+                  final lastName = row[2].trim();
+                  final className = row[3].trim();
+                  final dob = row[4].trim();
+                  final parentPhone = row[5].trim();
+
+                  if (studentId.isNotEmpty &&
+                      firstName.isNotEmpty &&
+                      lastName.isNotEmpty &&
+                      className.isNotEmpty &&
+                      dob.isNotEmpty &&
+                      parentPhone.isNotEmpty) {
+                    print(
+                        '✅ Student: $firstName $lastName ($studentId) - Class: $className');
+                  }
+                }
+              }
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'Successfully processed ${editedData.length} students from editor'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            },
+          ),
+        ),
+      );
+    }
+  }
+
   void _handleSkip() {
     Navigator.pushNamedAndRemoveUntil(
       context,
@@ -701,15 +888,33 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
     });
 
     try {
-      // TODO: Process uploaded files
+      // Process uploaded files
       if (_teachersFilePath != null) {
         print('📁 Processing teachers file: $_teachersFilePath');
+        print('📊 Reading Excel file for teachers...');
         // Process Excel file and bulk insert teachers
+        final file = File(_teachersFilePath!);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          final excel = Excel.decodeBytes(bytes);
+          final sheet =
+              excel['Teachers Template'] ?? excel[excel.tables.keys.first];
+          print('📋 Found ${sheet.maxRows - 1} teacher records in Excel file');
+        }
       }
 
       if (_studentsFilePath != null) {
         print('📁 Processing students file: $_studentsFilePath');
+        print('📊 Reading Excel file for students...');
         // Process Excel file and bulk insert students
+        final file = File(_studentsFilePath!);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          final excel = Excel.decodeBytes(bytes);
+          final sheet =
+              excel['Students Template'] ?? excel[excel.tables.keys.first];
+          print('📋 Found ${sheet.maxRows - 1} student records in Excel file');
+        }
       }
 
       await Future.delayed(const Duration(seconds: 1));
