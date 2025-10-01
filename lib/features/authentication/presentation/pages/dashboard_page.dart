@@ -107,8 +107,8 @@ class _DashboardPageState extends State<DashboardPage>
         print('   School ID: $_schoolId');
         print('   User Role: $_userRole');
 
-        // Trigger sync in background after a short delay (don't wait for it)
-        Future.delayed(const Duration(milliseconds: 500), () {
+        // Trigger sync in background after dashboard is displayed (don't wait for it)
+        Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted) {
             _triggerManualSync();
           }
@@ -748,6 +748,15 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     _loadDashboardData();
     _listenToSyncUpdates();
     _listenToSyncStatus();
+  }
+
+  @override
+  void didUpdateWidget(DashboardHomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Reload data when schoolId changes from null to a value
+    if (oldWidget.schoolId != widget.schoolId && widget.schoolId != null) {
+      _loadDashboardData();
+    }
   }
 
   void _listenToSyncUpdates() {

@@ -18,6 +18,7 @@ import 'features/authentication/presentation/bloc/auth_bloc.dart';
 import 'features/authentication/presentation/bloc/auth_event.dart';
 import 'features/authentication/presentation/bloc/auth_state.dart' as app_auth;
 import 'features/authentication/presentation/pages/login_page.dart';
+import 'core/widgets/splash_screen.dart';
 import 'features/attendance/presentation/bloc/attendance_bloc.dart';
 import 'features/fee_collection/presentation/bloc/fee_collection_bloc.dart';
 import 'features/student_management/presentation/bloc/student_bloc.dart';
@@ -505,6 +506,7 @@ class MyApp extends StatelessWidget {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
@@ -573,25 +575,13 @@ class MyApp extends StatelessWidget {
                   child: BlocBuilder<AuthBloc, app_auth.AuthState>(
                     builder: (context, state) {
                       if (state is app_auth.AuthAuthenticated) {
-                        // Show loading while syncing and checking onboarding status
-                        return const Scaffold(
-                          body: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                CircularProgressIndicator(),
-                                SizedBox(height: 16),
-                                Text(
-                                  'Syncing your data...',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
+                        // Navigate to dashboard immediately - don't wait for sync
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _handleOnboardingNavigation(
+                              context, state.user.id, state.user.phoneNumber);
+                        });
+                        // Show splash screen while navigating
+                        return const SplashScreen();
                       } else {
                         // AuthInitial, AuthUnauthenticated, AuthLoading, AuthOTPSent, or AuthError
                         // Keep LoginPage mounted so phone number persists

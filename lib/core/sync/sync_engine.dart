@@ -102,11 +102,8 @@ class SyncEngine {
       }
     });
 
-    // Trigger initial sync after a short delay
-    Timer(const Duration(seconds: 2), () {
-      print('🔄 Triggering initial sync...');
-      _triggerSync();
-    });
+    // Note: Initial sync is now handled manually from the dashboard
+    // to ensure UI is ready before syncing begins
 
     print('✅ Sync engine initialized successfully');
   }
