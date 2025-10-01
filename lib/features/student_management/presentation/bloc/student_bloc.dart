@@ -106,10 +106,8 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
       await _createStudentUseCase(
         schoolId: event.schoolId,
         classId: event.classId,
-        studentId: event.studentId,
         firstName: event.firstName,
         lastName: event.lastName,
-        dateOfBirth: event.dateOfBirth,
         photoUrl: event.photoUrl,
         parentPhone: event.parentPhone,
         parentEmail: event.parentEmail,

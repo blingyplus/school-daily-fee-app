@@ -144,6 +144,12 @@ class SyncEngine {
       int totalRecords = 0;
       List<SyncConflict> conflicts = [];
 
+      // Clean up orphaned sync logs first
+      final cleanedUp = await cleanupOrphanedSyncLogs();
+      if (cleanedUp > 0) {
+        print('🧹 Cleaned up $cleanedUp orphaned sync logs');
+      }
+
       // First, verify sync status if enabled
       if (verifyFirst && env.Environment.useSupabase) {
         print('🔍 Verifying sync status before sync...');
@@ -382,7 +388,18 @@ class SyncEngine {
       limit: 1,
     );
 
-    if (recordData.isEmpty) return;
+    if (recordData.isEmpty) {
+      // Record doesn't exist locally (was deleted or never created properly)
+      // Clean up the orphaned sync log entry
+      print(
+          '⚠️ Record $entityType:$entityId not found locally, cleaning up sync log');
+      await database.delete(
+        DatabaseHelper.tableSyncLog,
+        where: 'entity_type = ? AND entity_id = ?',
+        whereArgs: [entityType, entityId],
+      );
+      return;
+    }
 
     final localData = recordData.first;
 
@@ -777,6 +794,50 @@ class SyncEngine {
     } catch (e) {
       print('Failed to resolve conflict: $e');
     }
+  }
+
+  /// Clean up orphaned sync logs (records that no longer exist in main tables)
+  Future<int> cleanupOrphanedSyncLogs() async {
+    int cleanedUp = 0;
+
+    try {
+      print('🧹 Cleaning up orphaned sync logs...');
+
+      final allSyncLogs = await database.query(DatabaseHelper.tableSyncLog);
+
+      for (final syncLog in allSyncLogs) {
+        final entityType = syncLog['entity_type'] as String;
+        final entityId = syncLog['entity_id'] as String;
+        final tableName = _getTableName(entityType);
+
+        if (tableName == null) continue;
+
+        // Check if the record still exists
+        final recordExists = await database.query(
+          tableName,
+          where: 'id = ?',
+          whereArgs: [entityId],
+          limit: 1,
+        );
+
+        if (recordExists.isEmpty) {
+          // Record doesn't exist, delete the sync log
+          await database.delete(
+            DatabaseHelper.tableSyncLog,
+            where: 'id = ?',
+            whereArgs: [syncLog['id']],
+          );
+          print('🗑️ Cleaned up orphaned sync log: $entityType:$entityId');
+          cleanedUp++;
+        }
+      }
+
+      print('✅ Cleaned up $cleanedUp orphaned sync logs');
+    } catch (e) {
+      print('❌ Error cleaning up orphaned sync logs: $e');
+    }
+
+    return cleanedUp;
   }
 
   /// Clear failed sync records and reset them to pending

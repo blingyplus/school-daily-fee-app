@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../shared/data/datasources/local/database_helper.dart';
 import '../models/student_model.dart';
 import '../models/student_fee_config_model.dart';
@@ -110,7 +111,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
     // Create default fee config for the student
     final feeConfig = StudentFeeConfigModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       studentId: student.id,
       canteenDailyFee: 9.0, // Default canteen fee
       transportDailyFee: 0.0,

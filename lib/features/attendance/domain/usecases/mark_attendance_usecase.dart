@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import '../../../../shared/domain/entities/attendance_record.dart';
 import '../repositories/attendance_repository.dart';
 
@@ -16,9 +17,10 @@ class MarkAttendanceUseCase {
     String? notes,
   }) async {
     final now = DateTime.now();
+    final uuid = const Uuid();
 
     final record = AttendanceRecord(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: uuid.v4(),
       schoolId: schoolId,
       studentId: studentId,
       classId: classId,

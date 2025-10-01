@@ -21,7 +21,6 @@ class _LoginPageState extends State<LoginPage> {
   final _phoneController = TextEditingController();
   bool _isLoading = false;
   String _countryCode = '+233'; // Ghana country code
-  String _lastEnteredPhone = ''; // Store last entered phone number
 
   @override
   void dispose() {
@@ -33,21 +32,23 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: BlocListener<AuthBloc, AuthState>(
+        listenWhen: (previous, current) {
+          // Only listen to states that matter for the login flow
+          // Ignore initial auth checks that happen on app start
+          return current is AuthOTPSent ||
+              current is AuthError ||
+              (current is AuthLoading &&
+                  previous is! AuthInitial &&
+                  previous is! AuthUnauthenticated);
+        },
         listener: (context, state) {
           print('Login page received state: $state'); // Debug log
           if (state is AuthError) {
             setState(() {
               _isLoading = false;
-              // Restore the phone number on error
-              _phoneController.text = _lastEnteredPhone;
             });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Theme.of(context).colorScheme.error,
-                duration: const Duration(seconds: 4),
-              ),
-            );
+            // Error snackbar is handled by main.dart BlocListener
+            // Phone number persists automatically since page is not recreated
           } else if (state is AuthLoading) {
             setState(() {
               _isLoading = true;
@@ -213,8 +214,6 @@ class _LoginPageState extends State<LoginPage> {
     print('_handleLogin called'); // Debug log
     if (_formKey.currentState?.validate() ?? false) {
       final phoneNumber = '$_countryCode${_phoneController.text.trim()}';
-      _lastEnteredPhone =
-          _phoneController.text.trim(); // Store the phone number
       print(
           'Dispatching AuthLoginRequested with phone: $phoneNumber'); // Debug log
       context.read<AuthBloc>().add(

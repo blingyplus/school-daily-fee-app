@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import '../../../../shared/domain/entities/fee_collection.dart';
 import '../repositories/fee_collection_repository.dart';
 
@@ -20,9 +21,10 @@ class CollectFeeUseCase {
     String? notes,
   }) async {
     final now = DateTime.now();
+    final uuid = const Uuid();
 
     final collection = FeeCollection(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: uuid.v4(),
       schoolId: schoolId,
       studentId: studentId,
       collectedBy: collectedBy,

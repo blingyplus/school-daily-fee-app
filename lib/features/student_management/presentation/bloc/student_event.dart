@@ -48,10 +48,8 @@ class LoadStudentById extends StudentEvent {
 class CreateStudent extends StudentEvent {
   final String schoolId;
   final String classId;
-  final String studentId;
   final String firstName;
   final String lastName;
-  final DateTime? dateOfBirth;
   final String? photoUrl;
   final String? parentPhone;
   final String? parentEmail;
@@ -60,10 +58,8 @@ class CreateStudent extends StudentEvent {
   const CreateStudent({
     required this.schoolId,
     required this.classId,
-    required this.studentId,
     required this.firstName,
     required this.lastName,
-    this.dateOfBirth,
     this.photoUrl,
     this.parentPhone,
     this.parentEmail,
@@ -74,10 +70,8 @@ class CreateStudent extends StudentEvent {
   List<Object?> get props => [
         schoolId,
         classId,
-        studentId,
         firstName,
         lastName,
-        dateOfBirth,
         photoUrl,
         parentPhone,
         parentEmail,

@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import '../../../../shared/domain/entities/attendance_record.dart';
 import '../repositories/attendance_repository.dart';
 
@@ -16,11 +17,12 @@ class BulkMarkAttendanceUseCase {
     String? notes,
   }) async {
     final records = <AttendanceRecord>[];
+    final uuid = const Uuid();
 
     for (final studentId in studentIds) {
       final record = await _repository.createAttendanceRecord(
         AttendanceRecord(
-          id: DateTime.now().millisecondsSinceEpoch.toString() + '_$studentId',
+          id: uuid.v4(),
           schoolId: schoolId,
           studentId: studentId,
           classId: classId,

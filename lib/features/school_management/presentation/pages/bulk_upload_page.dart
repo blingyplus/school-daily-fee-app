@@ -9,6 +9,7 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/widgets/excel_editor_widget.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/sync/sync_engine.dart';
+import '../../../../core/utils/id_generator.dart';
 import '../../../../shared/data/datasources/local/database_helper.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
@@ -902,20 +903,13 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         'First Name',
         'Last Name',
         'Phone Number',
-        'Employee ID',
         'Email (Optional)'
       ];
       final sampleData = [
-        ['John', 'Doe', '+233023456789', 'EMP001', 'john.doe@school.com'],
-        ['Jane', 'Smith', '+233987654321', 'EMP002', 'jane.smith@school.com'],
-        ['Mike', 'Johnson', '+233555666777', 'EMP003', ''],
-        [
-          'Sarah',
-          'Wilson',
-          '+233111222333',
-          'EMP004',
-          'sarah.wilson@school.com'
-        ],
+        ['John', 'Doe', '+233023456789', 'john.doe@school.com'],
+        ['Jane', 'Smith', '+233987654321', 'jane.smith@school.com'],
+        ['Mike', 'Johnson', '+233555666777', ''],
+        ['Sarah', 'Wilson', '+233111222333', 'sarah.wilson@school.com'],
       ];
 
       Navigator.push(
@@ -933,26 +927,23 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               final newTeachers = <Map<String, dynamic>>[];
               for (int i = 0; i < editedData.length; i++) {
                 final row = editedData[i];
-                if (row.length >= 4) {
+                if (row.length >= 3) {
                   final firstName = row[0].trim();
                   final lastName = row[1].trim();
                   final phone = row[2].trim();
-                  final employeeId = row[3].trim();
-                  final email = row.length > 4 ? row[4].trim() : '';
+                  final email = row.length > 3 ? row[3].trim() : '';
 
                   if (firstName.isNotEmpty &&
                       lastName.isNotEmpty &&
-                      phone.isNotEmpty &&
-                      employeeId.isNotEmpty) {
+                      phone.isNotEmpty) {
                     newTeachers.add({
                       'firstName': firstName,
                       'lastName': lastName,
                       'phone': phone,
-                      'employeeId': employeeId,
                       'email': email,
                     });
                     print(
-                        '✅ Teacher: $firstName $lastName ($employeeId) - $phone${email.isNotEmpty ? ' - $email' : ''}');
+                        '✅ Teacher: $firstName $lastName - $phone${email.isNotEmpty ? ' - $email' : ''}');
                   }
                 }
               }
@@ -1009,7 +1000,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       );
     } else if (type == 'students') {
       final headers = [
-        'Student ID',
         'First Name',
         'Last Name',
         'Class(Grade Section)',
@@ -1019,7 +1009,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
       ];
       final sampleData = [
         [
-          'STU001',
           'Alice',
           'Johnson',
           'Nursery 1 A',
@@ -1028,7 +1017,6 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           '123 Main St'
         ],
         [
-          'STU002',
           'Bob',
           'Smith',
           'Nursery 2 A',
@@ -1036,17 +1024,8 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           'parent2@email.com',
           '456 Oak Ave'
         ],
+        ['Charlie', 'Brown', 'BS 1 A', '+233555666777', '', '789 Pine Rd'],
         [
-          'STU003',
-          'Charlie',
-          'Brown',
-          'BS 1 A',
-          '+233555666777',
-          '',
-          '789 Pine Rd'
-        ],
-        [
-          'STU004',
           'Diana',
           'Wilson',
           'BS 1 B',
@@ -1071,23 +1050,20 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
               final newStudents = <Map<String, dynamic>>[];
               for (int i = 0; i < editedData.length; i++) {
                 final row = editedData[i];
-                if (row.length >= 5) {
-                  final studentId = row[0].trim();
-                  final firstName = row[1].trim();
-                  final lastName = row[2].trim();
-                  final className = row[3].trim();
-                  final parentPhone = row[4].trim();
+                if (row.length >= 4) {
+                  final firstName = row[0].trim();
+                  final lastName = row[1].trim();
+                  final className = row[2].trim();
+                  final parentPhone = row[3].trim();
 
-                  if (studentId.isNotEmpty &&
-                      firstName.isNotEmpty &&
+                  if (firstName.isNotEmpty &&
                       lastName.isNotEmpty &&
                       className.isNotEmpty &&
                       parentPhone.isNotEmpty) {
-                    final parentEmail = row.length > 5 ? row[5].trim() : '';
-                    final address = row.length > 6 ? row[6].trim() : '';
+                    final parentEmail = row.length > 4 ? row[4].trim() : '';
+                    final address = row.length > 5 ? row[5].trim() : '';
 
                     newStudents.add({
-                      'studentId': studentId,
                       'firstName': firstName,
                       'lastName': lastName,
                       'className': className,
@@ -1096,7 +1072,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
                       'address': address,
                     });
                     print(
-                        '✅ Student: $firstName $lastName ($studentId) - Class: $className');
+                        '✅ Student: $firstName $lastName - Class: $className');
                   }
                 }
               }
@@ -1183,7 +1159,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           final bytes = await file.readAsBytes();
           final excelFile = excel.Excel.decodeBytes(bytes);
           final sheet = excelFile['Teachers Template'] ??
-              excelFile[excelFile.tables.keys.first]!;
+              excelFile[excelFile.tables.keys.first];
           print('📋 Found ${sheet.maxRows - 1} teacher records in Excel file');
         }
       }
@@ -1197,7 +1173,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           final bytes = await file.readAsBytes();
           final excelFile = excel.Excel.decodeBytes(bytes);
           final sheet = excelFile['Students Template'] ??
-              excelFile[excelFile.tables.keys.first]!;
+              excelFile[excelFile.tables.keys.first];
           print('📋 Found ${sheet.maxRows - 1} student records in Excel file');
         }
       }
@@ -1364,6 +1340,20 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
 
       print('💾 Saving ${teachers.length} teachers to database...');
 
+      // Get school code for ID generation
+      final schools = await database.query(
+        DatabaseHelper.tableSchools,
+        where: 'id = ?',
+        whereArgs: [widget.schoolId],
+        limit: 1,
+      );
+
+      if (schools.isEmpty) {
+        throw Exception('School not found');
+      }
+
+      final schoolCode = schools.first['code'] as String;
+
       for (int i = 0; i < teachers.length; i++) {
         final teacher = teachers[i];
         final teacherId = uuid.v4();
@@ -1372,14 +1362,19 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         print(
             '📋 Saving teacher ${i + 1}: ${teacher['firstName']} ${teacher['lastName']}');
 
+        // Auto-generate employee ID
+        final employeeId = await IdGenerator.generateEmployeeId(
+          schoolId: widget.schoolId,
+          schoolCode: schoolCode,
+        );
+
         // Create user record first
         await database.insert(
           DatabaseHelper.tableUsers,
           {
             'id': userId,
             'phone_number': teacher['phone'],
-            'is_active':
-                1, // Use integer instead of boolean // Use integer instead of boolean
+            'is_active': 1, // Use integer instead of boolean
             'created_at': now.millisecondsSinceEpoch,
             'updated_at': now.millisecondsSinceEpoch,
           },
@@ -1394,7 +1389,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
             'user_id': userId,
             'first_name': teacher['firstName'],
             'last_name': teacher['lastName'],
-            'employee_id': teacher['employeeId'],
+            'employee_id': employeeId,
             'created_at': now.millisecondsSinceEpoch,
             'updated_at': now.millisecondsSinceEpoch,
           },
@@ -1463,9 +1458,23 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
 
       print('💾 Saving ${students.length} students to database...');
 
+      // Get school code for ID generation
+      final schools = await database.query(
+        DatabaseHelper.tableSchools,
+        where: 'id = ?',
+        whereArgs: [widget.schoolId],
+        limit: 1,
+      );
+
+      if (schools.isEmpty) {
+        throw Exception('School not found');
+      }
+
+      final schoolCode = schools.first['code'] as String;
+
       for (int i = 0; i < students.length; i++) {
         final student = students[i];
-        final studentId = uuid.v4();
+        final studentUuid = uuid.v4();
 
         print(
             '📋 Saving student ${i + 1}: ${student['firstName']} ${student['lastName']}');
@@ -1488,14 +1497,20 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
           continue;
         }
 
+        // Auto-generate student ID
+        final studentId = await IdGenerator.generateStudentId(
+          schoolId: widget.schoolId,
+          schoolCode: schoolCode,
+        );
+
         // Create student record
         await database.insert(
           DatabaseHelper.tableStudents,
           {
-            'id': studentId,
+            'id': studentUuid,
             'school_id': widget.schoolId,
             'class_id': classId,
-            'student_id': student['studentId'],
+            'student_id': studentId,
             'first_name': student['firstName'],
             'last_name': student['lastName'],
             'date_of_birth': null,
@@ -1514,12 +1529,12 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
         await syncEngine.logSyncOperation(
           schoolId: widget.schoolId,
           entityType: 'students',
-          entityId: studentId,
+          entityId: studentUuid,
           operation: 'insert',
         );
 
         print(
-            '✅ Student saved: ${student['firstName']} ${student['lastName']}');
+            '✅ Student saved: ${student['firstName']} ${student['lastName']} (ID: $studentId)');
       }
 
       print('✅ All ${students.length} students saved to database');
