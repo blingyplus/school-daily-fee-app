@@ -1,6 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../../../shared/domain/entities/user.dart';
+import '../../../../shared/data/utils/sqlite_converter.dart';
 
 part 'user_model.g.dart';
 
@@ -39,14 +40,15 @@ class UserModel {
   /// Create from SQLite JSON (integers as booleans)
   factory UserModel.fromSqliteJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'] as String,
-      phoneNumber: json['phone_number'] as String,
-      otpHash: json['otp_hash'] as String?,
-      otpExpiresAt: json['otp_expires_at'] as int?,
-      lastLogin: json['last_login'] as int?,
-      isActive: (json['is_active'] as int) == 1, // Convert integer to boolean
-      createdAt: json['created_at'] as int,
-      updatedAt: json['updated_at'] as int,
+      id: SqliteConverter.safeString(json['id']),
+      phoneNumber: SqliteConverter.safeString(json['phone_number']),
+      otpHash: SqliteConverter.safeStringNullable(json['otp_hash']),
+      otpExpiresAt: SqliteConverter.safeIntNullable(json['otp_expires_at']),
+      lastLogin: SqliteConverter.safeIntNullable(json['last_login']),
+      isActive: SqliteConverter.safeBool(
+          json['is_active']), // Convert integer to boolean
+      createdAt: SqliteConverter.safeInt(json['created_at']),
+      updatedAt: SqliteConverter.safeInt(json['updated_at']),
     );
   }
 

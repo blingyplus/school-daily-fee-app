@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../shared/domain/entities/student.dart';
+import '../../../../shared/domain/entities/fee_collection.dart';
+import 'student_payment_status_badge.dart';
 
 class StudentCard extends StatelessWidget {
   final Student student;
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final Map<FeeType, bool>? paymentStatus;
 
   const StudentCard({
     super.key,
@@ -14,6 +17,7 @@ class StudentCard extends StatelessWidget {
     this.onTap,
     this.onEdit,
     this.onDelete,
+    this.paymentStatus,
   });
 
   @override
@@ -57,11 +61,23 @@ class StudentCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      student.fullName,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            student.fullName,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
+                        ),
+                        if (paymentStatus != null)
+                          StudentPaymentStatusBadge(
+                              paymentStatus: paymentStatus!),
+                      ],
                     ),
                     SizedBox(height: 4.h),
                     Text(

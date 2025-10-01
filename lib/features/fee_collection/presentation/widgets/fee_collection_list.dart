@@ -2,39 +2,152 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/domain/entities/fee_collection.dart';
+import '../../../../shared/domain/entities/student.dart';
+import '../pages/fee_collection_details_page.dart';
+import '../../../student_management/domain/usecases/get_students_usecase.dart';
+import '../../../../core/di/injection.dart';
 
-class FeeCollectionList extends StatelessWidget {
+class FeeCollectionList extends StatefulWidget {
   final List<FeeCollection> collections;
   final VoidCallback onRefresh;
+  final String schoolId;
 
   const FeeCollectionList({
     super.key,
     required this.collections,
     required this.onRefresh,
+    required this.schoolId,
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (collections.isEmpty) {
-      return _buildEmptyState(context);
-    }
+  State<FeeCollectionList> createState() => _FeeCollectionListState();
+}
 
-    return RefreshIndicator(
-      onRefresh: () async => onRefresh(),
-      child: ListView.builder(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppConstants.defaultPadding.w,
-          vertical: AppConstants.smallPadding.h,
+class _FeeCollectionListState extends State<FeeCollectionList> {
+  final Map<String, Student> _studentsCache = {};
+  late final GetStudentsUseCase _getStudentsUseCase;
+  bool _isLoadingStudents = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _getStudentsUseCase = getIt<GetStudentsUseCase>();
+    _loadStudents();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadStudents() async {
+    setState(() {
+      _isLoadingStudents = true;
+    });
+
+    try {
+      final students = await _getStudentsUseCase(widget.schoolId);
+      setState(() {
+        _studentsCache.clear();
+        for (final student in students) {
+          _studentsCache[student.id] = student;
+        }
+        _isLoadingStudents = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingStudents = false;
+      });
+    }
+  }
+
+  List<FeeCollection> get _filteredCollections {
+    if (_searchQuery.isEmpty) return widget.collections;
+
+    return widget.collections.where((collection) {
+      final student = _studentsCache[collection.studentId];
+      if (student == null) return false;
+
+      final query = _searchQuery.toLowerCase();
+      return student.fullName.toLowerCase().contains(query) ||
+          student.studentId.toLowerCase().contains(query) ||
+          collection.receiptNumber.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filteredCollections = _filteredCollections;
+
+    return Column(
+      children: [
+        // Search Bar
+        if (widget.collections.isNotEmpty && _studentsCache.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppConstants.defaultPadding.w,
+              AppConstants.defaultPadding.h,
+              AppConstants.defaultPadding.w,
+              AppConstants.smallPadding.h,
+            ),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search by student name or receipt...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+          ),
+
+        // Collections List
+        Expanded(
+          child: filteredCollections.isEmpty
+              ? _buildEmptyState(context)
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    widget.onRefresh();
+                    await _loadStudents();
+                  },
+                  child: ListView.builder(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: AppConstants.defaultPadding.w,
+                      vertical: AppConstants.smallPadding.h,
+                    ),
+                    itemCount: filteredCollections.length,
+                    itemBuilder: (context, index) {
+                      final collection = filteredCollections[index];
+                      final student = _studentsCache[collection.studentId];
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: 8.h),
+                        child:
+                            _buildCollectionCard(context, collection, student),
+                      );
+                    },
+                  ),
+                ),
         ),
-        itemCount: collections.length,
-        itemBuilder: (context, index) {
-          final collection = collections[index];
-          return Padding(
-            padding: EdgeInsets.only(bottom: 8.h),
-            child: _buildCollectionCard(context, collection),
-          );
-        },
-      ),
+      ],
     );
   }
 
@@ -69,7 +182,9 @@ class FeeCollectionList extends StatelessWidget {
     );
   }
 
-  Widget _buildCollectionCard(BuildContext context, FeeCollection collection) {
+  Widget _buildCollectionCard(
+      BuildContext context, FeeCollection collection, Student? student) {
+    final coveragePeriod = _getCoveragePeriodText(collection.coverageDays);
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(
@@ -78,7 +193,14 @@ class FeeCollectionList extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12.r),
         onTap: () {
-          // TODO: Show fee collection details
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FeeCollectionDetailsPage(
+                collection: collection,
+              ),
+            ),
+          );
         },
         child: Padding(
           padding: EdgeInsets.all(12.w),
@@ -107,14 +229,16 @@ class FeeCollectionList extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          collection.receiptNumber,
+                          student?.fullName ?? 'Loading...',
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                         ),
                         Text(
-                          'ID: ${collection.studentId}',
+                          student != null
+                              ? 'ID: ${student.studentId}'
+                              : collection.receiptNumber,
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Theme.of(context)
@@ -174,11 +298,14 @@ class FeeCollectionList extends StatelessWidget {
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   SizedBox(width: 4.w),
-                  Text(
-                    '${_formatDate(collection.paymentDate)} • ${collection.feeType.name} • ${collection.paymentMethod.name}',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                  Expanded(
+                    child: Text(
+                      '${_formatDate(collection.paymentDate)} • ${coveragePeriod} • ${collection.feeType.name}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
                   ),
                 ],
               ),
@@ -222,5 +349,13 @@ class FeeCollectionList extends StatelessWidget {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  String _getCoveragePeriodText(int days) {
+    if (days == 1) return '1 day';
+    if (days == 7) return '1 week';
+    if (days == 14) return '2 weeks';
+    if (days >= 28 && days <= 31) return '1 month';
+    return '$days days';
   }
 }

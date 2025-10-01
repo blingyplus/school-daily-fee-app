@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/school_class.dart';
+import '../utils/sqlite_converter.dart';
 
 part 'class_model.g.dart';
 
@@ -73,15 +74,15 @@ class ClassModel {
   /// Create from SQLite JSON
   factory ClassModel.fromSqliteJson(Map<String, dynamic> json) {
     return ClassModel(
-      id: json['id'] as String,
-      schoolId: json['school_id'] as String,
-      name: json['name'] as String,
-      gradeLevel: json['grade_level'] as String,
-      section: json['section'] as String,
-      academicYear: json['academic_year'] as int,
-      isActive: (json['is_active'] as int) == 1,
-      createdAt: json['created_at'] as int,
-      updatedAt: json['updated_at'] as int,
+      id: SqliteConverter.safeString(json['id']),
+      schoolId: SqliteConverter.safeString(json['school_id']),
+      name: SqliteConverter.safeString(json['name']),
+      gradeLevel: SqliteConverter.safeString(json['grade_level']),
+      section: SqliteConverter.safeString(json['section']),
+      academicYear: SqliteConverter.safeInt(json['academic_year']),
+      isActive: SqliteConverter.safeBool(json['is_active']),
+      createdAt: SqliteConverter.safeInt(json['created_at']),
+      updatedAt: SqliteConverter.safeInt(json['updated_at']),
     );
   }
 

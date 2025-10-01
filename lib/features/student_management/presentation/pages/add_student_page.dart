@@ -97,13 +97,6 @@ class _AddStudentPageState extends State<AddStudentPage> {
         title: Text(widget.isEditing ? 'Edit Student' : 'Add Student'),
         backgroundColor: Theme.of(context).colorScheme.background,
         elevation: 0,
-        actions: [
-          if (widget.isEditing)
-            IconButton(
-              icon: const Icon(Icons.save),
-              onPressed: _saveStudent,
-            ),
-        ],
       ),
       body: BlocListener<StudentBloc, StudentState>(
         listener: (context, state) {
@@ -118,139 +111,163 @@ class _AddStudentPageState extends State<AddStudentPage> {
             );
           }
         },
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(AppConstants.largePadding.w),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSectionTitle('Basic Information'),
-                SizedBox(height: 16.h),
+        child: Column(
+          children: [
+            // Scrollable Form Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(AppConstants.largePadding.w),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('Basic Information'),
+                      SizedBox(height: 16.h),
 
-                // First Name
-                TextFormField(
-                  controller: _firstNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'First Name *',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'First name is required';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.h),
-
-                // Last Name
-                TextFormField(
-                  controller: _lastNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Last Name *',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Last name is required';
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.h),
-
-                // Class Selection
-                _isLoadingClasses
-                    ? const Center(child: CircularProgressIndicator())
-                    : DropdownButtonFormField<String>(
-                        value: _selectedClassId,
+                      // First Name
+                      TextFormField(
+                        controller: _firstNameController,
                         decoration: const InputDecoration(
-                          labelText: 'Class *',
+                          labelText: 'First Name *',
                           border: OutlineInputBorder(),
-                          helperText: 'Select the student\'s class',
                         ),
-                        items: _classes.map((classModel) {
-                          return DropdownMenuItem<String>(
-                            value: classModel.id,
-                            child: Text(classModel.name),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedClassId = value;
-                          });
-                        },
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please select a class';
+                          if (value == null || value.trim().isEmpty) {
+                            return 'First name is required';
                           }
                           return null;
                         },
                       ),
-                SizedBox(height: 24.h),
+                      SizedBox(height: 16.h),
 
-                _buildSectionTitle('Contact Information'),
-                SizedBox(height: 16.h),
-
-                // Parent Phone
-                TextFormField(
-                  controller: _parentPhoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'Parent Phone',
-                    border: OutlineInputBorder(),
-                    prefixText: '+233 ',
-                  ),
-                  keyboardType: TextInputType.phone,
-                ),
-                SizedBox(height: 16.h),
-
-                // Parent Email
-                TextFormField(
-                  controller: _parentEmailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Parent Email',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value != null && value.isNotEmpty) {
-                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-                          .hasMatch(value)) {
-                        return 'Please enter a valid email address';
-                      }
-                    }
-                    return null;
-                  },
-                ),
-                SizedBox(height: 16.h),
-
-                // Address
-                TextFormField(
-                  controller: _addressController,
-                  decoration: const InputDecoration(
-                    labelText: 'Address',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                SizedBox(height: 32.h),
-
-                // Save Button
-                if (!widget.isEditing)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _saveStudent,
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 16.h),
+                      // Last Name
+                      TextFormField(
+                        controller: _lastNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Last Name *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Last name is required';
+                          }
+                          return null;
+                        },
                       ),
-                      child: const Text('Add Student'),
-                    ),
+                      SizedBox(height: 16.h),
+
+                      // Class Selection
+                      _isLoadingClasses
+                          ? const Center(child: CircularProgressIndicator())
+                          : DropdownButtonFormField<String>(
+                              value: _selectedClassId,
+                              decoration: const InputDecoration(
+                                labelText: 'Class *',
+                                border: OutlineInputBorder(),
+                                helperText: 'Select the student\'s class',
+                              ),
+                              items: _classes.map((classModel) {
+                                return DropdownMenuItem<String>(
+                                  value: classModel.id,
+                                  child: Text(classModel.name),
+                                );
+                              }).toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedClassId = value;
+                                });
+                              },
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please select a class';
+                                }
+                                return null;
+                              },
+                            ),
+                      SizedBox(height: 24.h),
+
+                      _buildSectionTitle('Contact Information'),
+                      SizedBox(height: 16.h),
+
+                      // Parent Phone
+                      TextFormField(
+                        controller: _parentPhoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Parent Phone',
+                          border: OutlineInputBorder(),
+                          prefixText: '+233 ',
+                        ),
+                        keyboardType: TextInputType.phone,
+                      ),
+                      SizedBox(height: 16.h),
+
+                      // Parent Email
+                      TextFormField(
+                        controller: _parentEmailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Parent Email',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value != null && value.isNotEmpty) {
+                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                                .hasMatch(value)) {
+                              return 'Please enter a valid email address';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 16.h),
+
+                      // Address
+                      TextFormField(
+                        controller: _addressController,
+                        decoration: const InputDecoration(
+                          labelText: 'Address',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 3,
+                      ),
+                      SizedBox(height: 32.h),
+                    ],
                   ),
-              ],
+                ),
+              ),
             ),
-          ),
+
+            // Save Button at Bottom (always visible)
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.all(AppConstants.defaultPadding.w),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: _saveStudent,
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14.h),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
+                child: Text(
+                  widget.isEditing ? 'Save Changes' : 'Add Student',
+                  style: TextStyle(
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

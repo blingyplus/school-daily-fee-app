@@ -188,6 +188,7 @@ class _FeeCollectionPageState extends State<FeeCollectionPage> {
           return FeeCollectionList(
             collections: state.collections,
             onRefresh: _loadFeeCollections,
+            schoolId: widget.schoolId,
           );
         }
 

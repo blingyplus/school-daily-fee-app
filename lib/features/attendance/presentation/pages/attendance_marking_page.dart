@@ -106,10 +106,6 @@ class _AttendanceMarkingPageState extends State<AttendanceMarkingPage> {
                   icon: const Icon(Icons.checklist),
                   onPressed: _enterSelectionMode,
                 ),
-                IconButton(
-                  icon: const Icon(Icons.save),
-                  onPressed: _saveAttendance,
-                ),
               ],
       ),
       body: _isLoading
@@ -204,6 +200,37 @@ class _AttendanceMarkingPageState extends State<AttendanceMarkingPage> {
                     },
                   ),
                 ),
+
+                // Save Button at Bottom (only show when not in selection mode)
+                if (!_isSelectionMode)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(AppConstants.defaultPadding.w),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, -2),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      onPressed: _saveAttendance,
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 14.h),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                      ),
+                      child: Text(
+                        'Save Attendance',
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
     );

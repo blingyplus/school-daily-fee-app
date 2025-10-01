@@ -1,6 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/domain/entities/fee_collection.dart';
 import '../../../../shared/domain/entities/student.dart';
@@ -10,6 +14,7 @@ import '../../../student_management/presentation/bloc/student_event.dart';
 import '../../../student_management/presentation/bloc/student_state.dart';
 import '../../../student_management/domain/usecases/get_student_fee_config_usecase.dart';
 import '../../../student_management/domain/usecases/update_student_fee_config_usecase.dart';
+import '../../../student_management/data/models/student_fee_config_model.dart';
 import '../../../../core/di/injection.dart';
 import '../bloc/fee_collection_bloc.dart';
 import '../bloc/fee_collection_event.dart';
@@ -46,14 +51,18 @@ class _StreamlinedFeeCollectionFormState
   final _searchFocusNode = FocusNode();
   final _amountGivenController = TextEditingController();
   final _notesController = TextEditingController();
-  final _getStudentFeeConfigUseCase = getIt<GetStudentFeeConfigUseCase>();
-  final _updateStudentFeeConfigUseCase = getIt<UpdateStudentFeeConfigUseCase>();
+  final _canteenAmountController = TextEditingController();
+  final _transportAmountController = TextEditingController();
+  late final GetStudentFeeConfigUseCase _getStudentFeeConfigUseCase;
+  late final UpdateStudentFeeConfigUseCase _updateStudentFeeConfigUseCase;
+  Database? _database;
 
   Student? _selectedStudent;
   String? _studentFeeConfigId;
   bool _isLoadingFeeConfig = false;
   bool _showAdvancedOptions = false;
   int _numberOfDays = 1;
+  bool _isNewConfig = false; // Track if we need to create new config
 
   // Fee amounts (editable)
   double _canteenAmount = 0.0;
@@ -69,6 +78,9 @@ class _StreamlinedFeeCollectionFormState
   @override
   void initState() {
     super.initState();
+    _getStudentFeeConfigUseCase = getIt<GetStudentFeeConfigUseCase>();
+    _updateStudentFeeConfigUseCase = getIt<UpdateStudentFeeConfigUseCase>();
+    _database = getIt<Database>();
     _generateReceiptNumber();
     if (widget.autoFocusSearch) {
       // Delay focus to allow widget to build
@@ -78,12 +90,21 @@ class _StreamlinedFeeCollectionFormState
     }
   }
 
+  Database get _databaseInstance {
+    if (_database == null) {
+      _database = getIt<Database>();
+    }
+    return _database!;
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     _searchFocusNode.dispose();
     _amountGivenController.dispose();
     _notesController.dispose();
+    _canteenAmountController.dispose();
+    _transportAmountController.dispose();
     super.dispose();
   }
 
@@ -98,18 +119,25 @@ class _StreamlinedFeeCollectionFormState
 
     try {
       final feeConfig = await _getStudentFeeConfigUseCase(studentId);
-      setState(() {
-        if (feeConfig != null) {
+
+      if (feeConfig != null) {
+        // Existing config found
+        setState(() {
+          _isNewConfig = false;
           _studentFeeConfigId = feeConfig.id;
           _canteenAmount = feeConfig.canteenDailyFee;
           _transportAmount = feeConfig.transportDailyFee;
           _canteenEnabled = feeConfig.canteenEnabled;
           _transportEnabled = feeConfig.transportEnabled;
-          // Auto-fill amount given with total
+          _canteenAmountController.text = _canteenAmount.toStringAsFixed(2);
+          _transportAmountController.text = _transportAmount.toStringAsFixed(2);
           _amountGivenController.text = _totalFeeAmount.toStringAsFixed(2);
-        }
-        _isLoadingFeeConfig = false;
-      });
+          _isLoadingFeeConfig = false;
+        });
+      } else {
+        // No config - use school defaults
+        await _loadSchoolDefaults();
+      }
     } catch (e) {
       setState(() {
         _isLoadingFeeConfig = false;
@@ -122,6 +150,101 @@ class _StreamlinedFeeCollectionFormState
           ),
         );
       }
+    }
+  }
+
+  Future<void> _loadSchoolDefaults() async {
+    try {
+      print(
+          '🔍 [FEE DEFAULTS] Loading school defaults for school ID: ${widget.schoolId}');
+
+      // Get school settings from database
+      final db = _databaseInstance;
+      final schoolData = await db.query(
+        'schools',
+        where: 'id = ?',
+        whereArgs: [widget.schoolId],
+        limit: 1,
+      );
+
+      print(
+          '📋 [FEE DEFAULTS] School query returned ${schoolData.length} records');
+
+      double defaultCanteen = 9.0;
+      double defaultTransport = 5.0;
+      bool canteenEnabled = true;
+      bool transportEnabled = false;
+
+      if (schoolData.isNotEmpty) {
+        print('📊 [FEE DEFAULTS] School record: ${schoolData.first}');
+        final settingsJson = schoolData.first['settings'] as String?;
+        print('⚙️ [FEE DEFAULTS] Settings field value: $settingsJson');
+        print(
+            '⚙️ [FEE DEFAULTS] Settings field type: ${settingsJson.runtimeType}');
+        print('⚙️ [FEE DEFAULTS] Settings is null: ${settingsJson == null}');
+        print(
+            '⚙️ [FEE DEFAULTS] Settings is empty: ${settingsJson?.isEmpty ?? true}');
+
+        if (settingsJson != null && settingsJson.isNotEmpty) {
+          try {
+            final settings = jsonDecode(settingsJson);
+            print('✅ [FEE DEFAULTS] Settings parsed: $settings');
+
+            final feeStructure = settings['fee_structure'];
+            print('💰 [FEE DEFAULTS] Fee structure: $feeStructure');
+
+            if (feeStructure != null) {
+              // Get fees and enabled status from school settings
+              defaultCanteen =
+                  (feeStructure['canteen_fee'] as num?)?.toDouble() ?? 9.0;
+              defaultTransport =
+                  (feeStructure['transport_fee'] as num?)?.toDouble() ?? 5.0;
+              canteenEnabled = feeStructure['canteen_enabled'] as bool? ?? true;
+              transportEnabled =
+                  feeStructure['transport_enabled'] as bool? ?? false;
+
+              print('✅ [FEE DEFAULTS] Extracted values:');
+              print(
+                  '   - Canteen: ₵$defaultCanteen (enabled: $canteenEnabled)');
+              print(
+                  '   - Transport: ₵$defaultTransport (enabled: $transportEnabled)');
+            } else {
+              print('⚠️ [FEE DEFAULTS] fee_structure is null in settings');
+            }
+          } catch (e) {
+            print('❌ [FEE DEFAULTS] Error parsing JSON: $e');
+          }
+        } else {
+          print(
+              '⚠️ [FEE DEFAULTS] Settings field is null or empty - using hardcoded defaults');
+        }
+      } else {
+        print('❌ [FEE DEFAULTS] No school found with ID: ${widget.schoolId}');
+      }
+
+      print('📝 [FEE DEFAULTS] Setting state with:');
+      print('   - Canteen: ₵$defaultCanteen (enabled: $canteenEnabled)');
+      print('   - Transport: ₵$defaultTransport (enabled: $transportEnabled)');
+      print('   - Is new config: true');
+
+      setState(() {
+        _isNewConfig = true;
+        _canteenAmount = defaultCanteen;
+        _transportAmount = defaultTransport;
+        _canteenEnabled = canteenEnabled;
+        _transportEnabled = transportEnabled;
+        _canteenAmountController.text = _canteenAmount.toStringAsFixed(2);
+        _transportAmountController.text = _transportAmount.toStringAsFixed(2);
+        _amountGivenController.text = _totalFeeAmount.toStringAsFixed(2);
+        _isLoadingFeeConfig = false;
+      });
+
+      print('✅ [FEE DEFAULTS] School defaults applied successfully');
+    } catch (e) {
+      print('❌ [FEE DEFAULTS] Exception in _loadSchoolDefaults: $e');
+      setState(() {
+        _isLoadingFeeConfig = false;
+      });
     }
   }
 
@@ -498,7 +621,7 @@ class _StreamlinedFeeCollectionFormState
         Expanded(
           child: _buildCompactFeeTypePill(
             label: 'Canteen',
-            amount: _canteenAmount,
+            controller: _canteenAmountController,
             enabled: _canteenEnabled,
             color: Colors.orange,
             icon: Icons.restaurant,
@@ -521,7 +644,7 @@ class _StreamlinedFeeCollectionFormState
         Expanded(
           child: _buildCompactFeeTypePill(
             label: 'Transport',
-            amount: _transportAmount,
+            controller: _transportAmountController,
             enabled: _transportEnabled,
             color: Colors.blue,
             icon: Icons.directions_bus,
@@ -545,16 +668,13 @@ class _StreamlinedFeeCollectionFormState
 
   Widget _buildCompactFeeTypePill({
     required String label,
-    required double amount,
+    required TextEditingController controller,
     required bool enabled,
     required Color color,
     required IconData icon,
     required ValueChanged<bool> onToggle,
     required ValueChanged<double> onAmountChanged,
   }) {
-    final amountController =
-        TextEditingController(text: amount.toStringAsFixed(2));
-
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
       decoration: BoxDecoration(
@@ -612,9 +732,10 @@ class _StreamlinedFeeCollectionFormState
               ),
               Expanded(
                 child: TextFormField(
-                  controller: amountController,
+                  controller: controller,
                   enabled: enabled,
-                  keyboardType: TextInputType.number,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   style: TextStyle(
                     color: enabled ? color : Colors.grey,
                     fontWeight: FontWeight.bold,
@@ -773,8 +894,9 @@ class _StreamlinedFeeCollectionFormState
   }
 
   Widget _buildTotalFeeDisplay() {
-    final dailyTotal = (_canteenEnabled ? _canteenAmount : 0.0) +
-        (_transportEnabled ? _transportAmount : 0.0);
+    final amountGivenText = _amountGivenController.text.trim();
+    final amountGiven = double.tryParse(amountGivenText) ?? 0.0;
+    final balance = amountGiven - _totalFeeAmount;
 
     return Container(
       padding: EdgeInsets.all(14.w),
@@ -789,41 +911,56 @@ class _StreamlinedFeeCollectionFormState
       ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Daily Total:',
-                style: TextStyle(
-                  fontSize: 13.sp,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                '₵ ${dailyTotal.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          if (_numberOfDays > 1) ...[
-            SizedBox(height: 4.h),
+          // Disbursement breakdown
+          if (_canteenEnabled) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Row(
+                  children: [
+                    Icon(Icons.restaurant, size: 14.sp, color: Colors.orange),
+                    SizedBox(width: 4.w),
+                    Text(
+                      'Canteen:',
+                      style: TextStyle(fontSize: 12.sp),
+                    ),
+                  ],
+                ),
                 Text(
-                  '$_numberOfDays days × ₵${dailyTotal.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  '₵${_canteenAmount.toStringAsFixed(2)} × $_numberOfDays = ₵${(_canteenAmount * _numberOfDays).toStringAsFixed(2)}',
+                  style:
+                      TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
+            SizedBox(height: 4.h),
           ],
-          Divider(height: 16.h, thickness: 1),
+          if (_transportEnabled) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.directions_bus, size: 14.sp, color: Colors.blue),
+                    SizedBox(width: 4.w),
+                    Text(
+                      'Transport:',
+                      style: TextStyle(fontSize: 12.sp),
+                    ),
+                  ],
+                ),
+                Text(
+                  '₵${_transportAmount.toStringAsFixed(2)} × $_numberOfDays = ₵${(_transportAmount * _numberOfDays).toStringAsFixed(2)}',
+                  style:
+                      TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            SizedBox(height: 4.h),
+          ],
+
+          Divider(height: 12.h, thickness: 1),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -844,6 +981,45 @@ class _StreamlinedFeeCollectionFormState
               ),
             ],
           ),
+
+          // Show balance if amount given
+          if (amountGiven > 0 && balance != 0) ...[
+            SizedBox(height: 8.h),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+              decoration: BoxDecoration(
+                color: balance > 0
+                    ? Colors.green.withOpacity(0.2)
+                    : Colors.orange.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    balance > 0 ? 'Change to Give:' : 'Short by:',
+                    style: TextStyle(
+                      fontSize: 13.sp,
+                      fontWeight: FontWeight.w600,
+                      color: balance > 0
+                          ? Colors.green.shade800
+                          : Colors.orange.shade800,
+                    ),
+                  ),
+                  Text(
+                    '₵ ${balance.abs().toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.bold,
+                      color: balance > 0
+                          ? Colors.green.shade800
+                          : Colors.orange.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -866,7 +1042,11 @@ class _StreamlinedFeeCollectionFormState
           },
         ),
       ),
-      keyboardType: TextInputType.number,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      onChanged: (value) {
+        // Trigger rebuild to show balance calculation
+        setState(() {});
+      },
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
           return 'Amount is required';
@@ -1011,9 +1191,27 @@ class _StreamlinedFeeCollectionFormState
       );
     }
 
-    // Update student fee config with new amounts
-    if (_studentFeeConfigId != null) {
-      try {
+    // Save or update student fee config with new amounts
+    try {
+      if (_isNewConfig || _studentFeeConfigId == null) {
+        // Create new config
+        final db = _databaseInstance;
+        final newConfig = StudentFeeConfigModel(
+          id: const Uuid().v4(),
+          studentId: _selectedStudent!.id,
+          canteenDailyFee: _canteenAmount,
+          transportDailyFee: _transportAmount,
+          canteenEnabled: _canteenEnabled,
+          transportEnabled: _transportEnabled,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        await db.insert('student_fee_config', newConfig.toMap());
+        _studentFeeConfigId = newConfig.id;
+        print('✅ Created new student fee config: $_studentFeeConfigId');
+      } else {
+        // Update existing config
         final updatedConfig = StudentFeeConfig(
           id: _studentFeeConfigId!,
           studentId: _selectedStudent!.id,
@@ -1021,19 +1219,19 @@ class _StreamlinedFeeCollectionFormState
           transportDailyFee: _transportAmount,
           canteenEnabled: _canteenEnabled,
           transportEnabled: _transportEnabled,
-          createdAt: DateTime.now(), // Will be overridden by repository
+          createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
         await _updateStudentFeeConfigUseCase(updatedConfig);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Fee collected but failed to update config: $e'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fee collected but config update failed: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
     }
 
@@ -1054,14 +1252,27 @@ class _StreamlinedFeeCollectionFormState
       });
     }
 
-    // TODO: Get current user ID for collectedBy
-    const collectedBy = 'current-user-id';
+    // Get current user ID from SharedPreferences
+    final prefs = getIt<SharedPreferences>();
+    final userId = prefs.getString('profile_user_id');
+
+    if (!mounted) return;
+
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User not found. Please log in again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     // Submit bulk fee collection
     context.read<FeeCollectionBloc>().add(CollectBulkFee(
           schoolId: widget.schoolId,
           studentId: _selectedStudent!.id,
-          collectedBy: collectedBy,
+          collectedBy: userId,
           feeCollections: feeCollections,
           amountGiven: amountGiven,
           paymentDate: widget.paymentDate,

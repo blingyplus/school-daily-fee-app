@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/teacher.dart';
+import '../utils/sqlite_converter.dart';
 
 part 'teacher_model.g.dart';
 
@@ -70,14 +71,14 @@ class TeacherModel {
   /// Create from SQLite JSON
   factory TeacherModel.fromSqliteJson(Map<String, dynamic> json) {
     return TeacherModel(
-      id: json['id'] as String,
-      userId: json['user_id'] as String,
-      firstName: json['first_name'] as String,
-      lastName: json['last_name'] as String,
-      employeeId: json['employee_id'] as String?,
-      photoUrl: json['photo_url'] as String?,
-      createdAt: json['created_at'] as int,
-      updatedAt: json['updated_at'] as int,
+      id: SqliteConverter.safeString(json['id']),
+      userId: SqliteConverter.safeString(json['user_id']),
+      firstName: SqliteConverter.safeString(json['first_name']),
+      lastName: SqliteConverter.safeString(json['last_name']),
+      employeeId: SqliteConverter.safeStringNullable(json['employee_id']),
+      photoUrl: SqliteConverter.safeStringNullable(json['photo_url']),
+      createdAt: SqliteConverter.safeInt(json['created_at']),
+      updatedAt: SqliteConverter.safeInt(json['updated_at']),
     );
   }
 

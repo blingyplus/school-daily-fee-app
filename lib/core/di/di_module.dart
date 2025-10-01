@@ -41,6 +41,7 @@ import '../../features/fee_collection/domain/usecases/get_fee_collections_usecas
 import '../../features/fee_collection/domain/usecases/get_student_fee_history_usecase.dart';
 import '../../features/fee_collection/domain/usecases/collect_fee_usecase.dart';
 import '../../features/fee_collection/domain/usecases/generate_receipt_number_usecase.dart';
+import '../../features/fee_collection/domain/usecases/check_student_payment_status_usecase.dart';
 
 @module
 abstract class DIModule {
@@ -315,6 +316,14 @@ abstract class DIModule {
   Future<GenerateReceiptNumberUseCase> get generateReceiptNumberUseCase async {
     final repository = await feeCollectionRepository;
     return GenerateReceiptNumberUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<CheckStudentPaymentStatusUseCase>
+      get checkStudentPaymentStatusUseCase async {
+    final repository = await feeCollectionRepository;
+    return CheckStudentPaymentStatusUseCase(repository);
   }
 
   @preResolve

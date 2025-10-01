@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 import '../../domain/entities/school.dart';
+import '../utils/sqlite_converter.dart';
 
 part 'school_model.g.dart';
 
@@ -89,18 +90,19 @@ class SchoolModel {
   /// Create from SQLite JSON
   factory SchoolModel.fromSqliteJson(Map<String, dynamic> json) {
     return SchoolModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      code: json['code'] as String,
-      address: json['address'] as String,
-      contactPhone: json['contact_phone'] as String,
-      contactEmail: json['contact_email'] as String?,
-      subscriptionTier: json['subscription_tier'] as String,
-      subscriptionExpiresAt: json['subscription_expires_at'] as int?,
-      settings: json['settings'] as String?,
-      isActive: (json['is_active'] as int) == 1,
-      createdAt: json['created_at'] as int,
-      updatedAt: json['updated_at'] as int,
+      id: SqliteConverter.safeString(json['id']),
+      name: SqliteConverter.safeString(json['name']),
+      code: SqliteConverter.safeString(json['code']),
+      address: SqliteConverter.safeString(json['address']),
+      contactPhone: SqliteConverter.safeString(json['contact_phone']),
+      contactEmail: SqliteConverter.safeStringNullable(json['contact_email']),
+      subscriptionTier: SqliteConverter.safeString(json['subscription_tier']),
+      subscriptionExpiresAt:
+          SqliteConverter.safeIntNullable(json['subscription_expires_at']),
+      settings: SqliteConverter.safeStringNullable(json['settings']),
+      isActive: SqliteConverter.safeBool(json['is_active']),
+      createdAt: SqliteConverter.safeInt(json['created_at']),
+      updatedAt: SqliteConverter.safeInt(json['updated_at']),
     );
   }
 
