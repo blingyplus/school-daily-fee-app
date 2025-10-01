@@ -290,13 +290,13 @@ class _DashboardPageState extends State<DashboardPage>
               ),
             ],
           ),
-          body: Column(
+          body: Stack(
             children: [
-              // Sync Status Banner
-              if (_isSyncing || _lastSyncResult != null)
-                _buildSyncBanner(context),
               // Main content
-              Expanded(child: _pages[_selectedIndex]),
+              _pages[_selectedIndex],
+              // Sync Status Overlay
+              if (_isSyncing || _lastSyncResult != null)
+                _buildSyncOverlay(context),
             ],
           ),
           bottomNavigationBar: BottomNavigationBar(
@@ -392,51 +392,65 @@ class _DashboardPageState extends State<DashboardPage>
     }
   }
 
-  Widget _buildSyncBanner(BuildContext context) {
-    Color backgroundColor;
+  Widget _buildSyncOverlay(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.7),
+                Colors.black.withOpacity(0.3),
+                Colors.transparent,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+              child: _buildSyncBannerContent(context),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyncBannerContent(BuildContext context) {
     IconData icon;
     String message;
     Color textColor;
 
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
     if (_isSyncing && _lastSyncResult?.status == SyncStatus.syncing) {
       // Only show syncing banner if we have a syncing result (first 1 second)
-      backgroundColor = isDarkMode
-          ? Colors.blue.shade900.withOpacity(0.3)
-          : Colors.blue.shade50;
       icon = Icons.sync;
       message = 'Syncing data...';
-      textColor = isDarkMode ? Colors.blue.shade200 : Colors.blue.shade900;
+      textColor = Colors.white;
     } else if (_lastSyncResult != null &&
         _lastSyncResult!.status != SyncStatus.syncing) {
       switch (_lastSyncResult!.status) {
         case SyncStatus.success:
-          backgroundColor = isDarkMode
-              ? Colors.green.shade900.withOpacity(0.3)
-              : Colors.green.shade50;
           icon = Icons.check_circle;
           message =
               'Sync complete! ${_lastSyncResult!.recordsProcessed ?? 0} new records processed.';
-          textColor =
-              isDarkMode ? Colors.green.shade200 : Colors.green.shade900;
+          textColor = Colors.green.shade300;
           break;
         case SyncStatus.failed:
-          backgroundColor = isDarkMode
-              ? Colors.red.shade900.withOpacity(0.3)
-              : Colors.red.shade50;
           icon = Icons.error;
           message = 'Sync failed: ${_lastSyncResult!.message}';
-          textColor = isDarkMode ? Colors.red.shade200 : Colors.red.shade900;
+          textColor = Colors.red.shade300;
           break;
         default:
-          backgroundColor = isDarkMode
-              ? Colors.orange.shade900.withOpacity(0.3)
-              : Colors.orange.shade50;
           icon = Icons.warning;
           message = _lastSyncResult!.message ?? 'Sync status unknown';
-          textColor =
-              isDarkMode ? Colors.orange.shade200 : Colors.orange.shade900;
+          textColor = Colors.orange.shade300;
       }
     } else {
       return const SizedBox.shrink();
@@ -447,14 +461,12 @@ class _DashboardPageState extends State<DashboardPage>
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: backgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -467,12 +479,20 @@ class _DashboardPageState extends State<DashboardPage>
                 color: textColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withOpacity(0.5),
+                    offset: const Offset(0, 1),
+                    blurRadius: 2,
+                  ),
+                ],
               ),
             ),
           ),
           if (_lastSyncResult != null)
             IconButton(
-              icon: Icon(Icons.close, color: textColor, size: 18),
+              icon: Icon(Icons.close,
+                  color: Colors.white.withOpacity(0.8), size: 18),
               onPressed: () {
                 setState(() {
                   _lastSyncResult = null;
