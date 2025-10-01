@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:sqflite/sqflite.dart';
 import '../../../../shared/data/datasources/local/database_helper.dart';
 import '../models/student_model.dart';
 import '../models/student_fee_config_model.dart';
@@ -19,13 +20,13 @@ abstract class StudentLocalDataSource {
 }
 
 class StudentLocalDataSourceImpl implements StudentLocalDataSource {
-  final DatabaseHelper _databaseHelper;
+  final Database _database;
 
-  StudentLocalDataSourceImpl(this._databaseHelper);
+  StudentLocalDataSourceImpl(this._database);
 
   @override
   Future<List<StudentModel>> getStudents(String schoolId) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final maps = await db.query(
       DatabaseHelper.tableStudents,
       where: 'school_id = ? AND is_active = ?',
@@ -38,7 +39,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
   @override
   Future<StudentModel?> getStudentById(String id) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final maps = await db.query(
       DatabaseHelper.tableStudents,
       where: 'id = ?',
@@ -54,7 +55,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
   @override
   Future<StudentModel?> getStudentByStudentId(
       String schoolId, String studentId) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final maps = await db.query(
       DatabaseHelper.tableStudents,
       where: 'school_id = ? AND student_id = ?',
@@ -70,7 +71,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
   @override
   Future<List<StudentModel>> searchStudents(
       String schoolId, String query) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final maps = await db.query(
       DatabaseHelper.tableStudents,
       where:
@@ -84,7 +85,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
   @override
   Future<List<StudentModel>> getStudentsByClass(String classId) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final maps = await db.query(
       DatabaseHelper.tableStudents,
       where: 'class_id = ? AND is_active = ?',
@@ -97,7 +98,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
   @override
   Future<String> createStudent(StudentModel student) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final now = DateTime.now().millisecondsSinceEpoch;
 
     final studentMap = student.toMap();
@@ -126,7 +127,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
   @override
   Future<void> updateStudent(StudentModel student) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final studentMap = student.toMap();
     studentMap['updated_at'] = DateTime.now().millisecondsSinceEpoch;
 
@@ -140,7 +141,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
   @override
   Future<void> deleteStudent(String id) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
 
     // Soft delete - mark as inactive
     await db.update(
@@ -156,7 +157,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
   @override
   Future<void> createStudentFeeConfig(StudentFeeConfigModel config) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final configMap = config.toMap();
 
     await db.insert(DatabaseHelper.tableStudentFeeConfig, configMap);
@@ -164,7 +165,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
   @override
   Future<StudentFeeConfigModel?> getStudentFeeConfig(String studentId) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final maps = await db.query(
       DatabaseHelper.tableStudentFeeConfig,
       where: 'student_id = ?',
@@ -179,7 +180,7 @@ class StudentLocalDataSourceImpl implements StudentLocalDataSource {
 
   @override
   Future<void> updateStudentFeeConfig(StudentFeeConfigModel config) async {
-    final db = await _databaseHelper.database;
+    final db = _database;
     final configMap = config.toMap();
     configMap['updated_at'] = DateTime.now().millisecondsSinceEpoch;
 

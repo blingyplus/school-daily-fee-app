@@ -12,7 +12,9 @@ import '../bloc/auth_state.dart';
 import '../../../student_management/presentation/pages/students_list_page.dart';
 import '../../../student_management/presentation/bloc/student_bloc.dart';
 import '../../../attendance/presentation/pages/class_selection_page.dart';
+import '../../../attendance/presentation/bloc/attendance_bloc.dart';
 import '../../../fee_collection/presentation/pages/fee_collection_page.dart';
+import '../../../fee_collection/presentation/bloc/fee_collection_bloc.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -686,7 +688,10 @@ class StudentsPage extends StatelessWidget {
     // TODO: Get schoolId from auth state
     const schoolId = 'temp-school-id'; // This should come from auth state
 
-    return const StudentsListPage(schoolId: schoolId);
+    return BlocProvider.value(
+      value: GetIt.instance<StudentBloc>(),
+      child: const StudentsListPage(schoolId: schoolId),
+    );
   }
 }
 
@@ -698,7 +703,10 @@ class AttendancePage extends StatelessWidget {
     // TODO: Get schoolId from auth state
     const schoolId = 'temp-school-id'; // This should come from auth state
 
-    return const ClassSelectionPage(schoolId: schoolId);
+    return BlocProvider.value(
+      value: GetIt.instance<AttendanceBloc>(),
+      child: const ClassSelectionPage(schoolId: schoolId),
+    );
   }
 }
 
@@ -710,7 +718,10 @@ class FeeCollectionTab extends StatelessWidget {
     // TODO: Get schoolId from auth state
     const schoolId = 'temp-school-id'; // This should come from auth state
 
-    return const FeeCollectionPage(schoolId: schoolId);
+    return BlocProvider.value(
+      value: GetIt.instance<FeeCollectionBloc>(),
+      child: const FeeCollectionPage(schoolId: schoolId),
+    );
   }
 }
 

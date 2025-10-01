@@ -1,7 +1,6 @@
 import 'dart:async';
 import '../../../../shared/data/datasources/local/database_helper.dart';
 import '../models/attendance_record_model.dart';
-import '../../../../shared/domain/entities/attendance_record.dart';
 
 abstract class AttendanceLocalDataSource {
   Future<List<AttendanceRecordModel>> getAttendanceRecords(
@@ -10,6 +9,7 @@ abstract class AttendanceLocalDataSource {
       String classId, DateTime date);
   Future<AttendanceRecordModel?> getAttendanceRecord(
       String studentId, DateTime date);
+  Future<AttendanceRecordModel?> getAttendanceRecordById(String id);
   Future<List<AttendanceRecordModel>> getStudentAttendanceHistory(
       String studentId, DateTime startDate, DateTime endDate);
   Future<String> createAttendanceRecord(AttendanceRecordModel record);
@@ -94,6 +94,21 @@ class AttendanceLocalDataSourceImpl implements AttendanceLocalDataSource {
     );
 
     return maps.map((map) => AttendanceRecordModel.fromMap(map)).toList();
+  }
+
+  @override
+  Future<AttendanceRecordModel?> getAttendanceRecordById(String id) async {
+    final db = await _databaseHelper.database;
+    final maps = await db.query(
+      DatabaseHelper.tableAttendanceRecords,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    if (maps.isNotEmpty) {
+      return AttendanceRecordModel.fromMap(maps.first);
+    }
+    return null;
   }
 
   @override

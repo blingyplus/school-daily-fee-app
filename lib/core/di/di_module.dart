@@ -109,7 +109,8 @@ abstract class DIModule {
   @preResolve
   @singleton
   Future<StudentLocalDataSource> get studentLocalDataSource async {
-    return StudentLocalDataSourceImpl(DatabaseHelper());
+    final db = await database;
+    return StudentLocalDataSourceImpl(db);
   }
 
   @singleton
@@ -120,9 +121,11 @@ abstract class DIModule {
   @singleton
   Future<StudentRepository> get studentRepository async {
     final localDataSource = await studentLocalDataSource;
+    final sync = await syncEngine;
     return StudentRepositoryImpl(
       localDataSource: localDataSource,
       remoteDataSource: studentRemoteDataSource,
+      syncEngine: sync,
     );
   }
 
@@ -194,9 +197,11 @@ abstract class DIModule {
   @singleton
   Future<AttendanceRepository> get attendanceRepository async {
     final localDataSource = await attendanceLocalDataSource;
+    final sync = await syncEngine;
     return AttendanceRepositoryImpl(
       localDataSource: localDataSource,
       remoteDataSource: attendanceRemoteDataSource,
+      syncEngine: sync,
     );
   }
 
@@ -259,9 +264,11 @@ abstract class DIModule {
   @singleton
   Future<FeeCollectionRepository> get feeCollectionRepository async {
     final localDataSource = await feeCollectionLocalDataSource;
+    final sync = await syncEngine;
     return FeeCollectionRepositoryImpl(
       localDataSource: localDataSource,
       remoteDataSource: feeCollectionRemoteDataSource,
+      syncEngine: sync,
     );
   }
 

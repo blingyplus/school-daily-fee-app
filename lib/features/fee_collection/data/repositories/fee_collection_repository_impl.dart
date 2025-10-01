@@ -4,16 +4,21 @@ import '../../../../shared/domain/entities/fee_collection.dart';
 import '../datasources/fee_collection_local_datasource.dart';
 import '../datasources/fee_collection_remote_datasource.dart';
 import '../models/fee_collection_model.dart';
+import '../../../../core/sync/sync_engine.dart';
+import '../../../../core/di/injection.dart';
 
 class FeeCollectionRepositoryImpl implements FeeCollectionRepository {
   final FeeCollectionLocalDataSource _localDataSource;
   final FeeCollectionRemoteDataSource _remoteDataSource;
+  final SyncEngine _syncEngine;
 
   FeeCollectionRepositoryImpl({
     required FeeCollectionLocalDataSource localDataSource,
     required FeeCollectionRemoteDataSource remoteDataSource,
+    SyncEngine? syncEngine,
   })  : _localDataSource = localDataSource,
-        _remoteDataSource = remoteDataSource;
+        _remoteDataSource = remoteDataSource,
+        _syncEngine = syncEngine ?? getIt<SyncEngine>();
 
   @override
   Future<List<FeeCollection>> getFeeCollections(
@@ -69,8 +74,13 @@ class FeeCollectionRepositoryImpl implements FeeCollectionRepository {
       // Save to local database first
       await _localDataSource.createFeeCollection(collectionModel);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this fee collection
+      await _syncEngine.logSyncOperation(
+        schoolId: collection.schoolId,
+        entityType: 'fee_collections',
+        entityId: collection.id,
+        operation: 'insert',
+      );
 
       return collection;
     } catch (e) {
@@ -86,8 +96,13 @@ class FeeCollectionRepositoryImpl implements FeeCollectionRepository {
       // Update local database
       await _localDataSource.updateFeeCollection(collectionModel);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this fee collection
+      await _syncEngine.logSyncOperation(
+        schoolId: collection.schoolId,
+        entityType: 'fee_collections',
+        entityId: collection.id,
+        operation: 'update',
+      );
 
       return collection;
     } catch (e) {
@@ -98,11 +113,22 @@ class FeeCollectionRepositoryImpl implements FeeCollectionRepository {
   @override
   Future<void> deleteFeeCollection(String id) async {
     try {
+      // Get fee collection first to get schoolId
+      final collection = await _localDataSource.getFeeCollectionById(id);
+      if (collection == null) {
+        throw Exception('Fee collection not found');
+      }
+
       // Delete from local database
       await _localDataSource.deleteFeeCollection(id);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this fee collection
+      await _syncEngine.logSyncOperation(
+        schoolId: collection.schoolId,
+        entityType: 'fee_collections',
+        entityId: id,
+        operation: 'delete',
+      );
     } catch (e) {
       throw Exception('Failed to delete fee collection: $e');
     }

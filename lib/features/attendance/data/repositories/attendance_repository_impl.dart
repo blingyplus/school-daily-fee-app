@@ -4,16 +4,21 @@ import '../../../../shared/domain/entities/attendance_record.dart';
 import '../datasources/attendance_local_datasource.dart';
 import '../datasources/attendance_remote_datasource.dart';
 import '../models/attendance_record_model.dart';
+import '../../../../core/sync/sync_engine.dart';
+import '../../../../core/di/injection.dart';
 
 class AttendanceRepositoryImpl implements AttendanceRepository {
   final AttendanceLocalDataSource _localDataSource;
   final AttendanceRemoteDataSource _remoteDataSource;
+  final SyncEngine _syncEngine;
 
   AttendanceRepositoryImpl({
     required AttendanceLocalDataSource localDataSource,
     required AttendanceRemoteDataSource remoteDataSource,
+    SyncEngine? syncEngine,
   })  : _localDataSource = localDataSource,
-        _remoteDataSource = remoteDataSource;
+        _remoteDataSource = remoteDataSource,
+        _syncEngine = syncEngine ?? getIt<SyncEngine>();
 
   @override
   Future<List<AttendanceRecord>> getAttendanceRecords(
@@ -72,8 +77,13 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       // Save to local database first
       await _localDataSource.createAttendanceRecord(recordModel);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this attendance record
+      await _syncEngine.logSyncOperation(
+        schoolId: record.schoolId,
+        entityType: 'attendance_records',
+        entityId: record.id,
+        operation: 'insert',
+      );
 
       return record;
     } catch (e) {
@@ -90,8 +100,13 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
       // Update local database
       await _localDataSource.updateAttendanceRecord(recordModel);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this attendance record
+      await _syncEngine.logSyncOperation(
+        schoolId: record.schoolId,
+        entityType: 'attendance_records',
+        entityId: record.id,
+        operation: 'update',
+      );
 
       return record;
     } catch (e) {
@@ -102,11 +117,22 @@ class AttendanceRepositoryImpl implements AttendanceRepository {
   @override
   Future<void> deleteAttendanceRecord(String id) async {
     try {
+      // Get attendance record first to get schoolId
+      final record = await _localDataSource.getAttendanceRecordById(id);
+      if (record == null) {
+        throw Exception('Attendance record not found');
+      }
+
       // Delete from local database
       await _localDataSource.deleteAttendanceRecord(id);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this attendance record
+      await _syncEngine.logSyncOperation(
+        schoolId: record.schoolId,
+        entityType: 'attendance_records',
+        entityId: id,
+        operation: 'delete',
+      );
     } catch (e) {
       throw Exception('Failed to delete attendance record: $e');
     }

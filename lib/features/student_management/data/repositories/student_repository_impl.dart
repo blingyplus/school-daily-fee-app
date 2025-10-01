@@ -6,16 +6,21 @@ import '../datasources/student_local_datasource.dart';
 import '../datasources/student_remote_datasource.dart';
 import '../models/student_model.dart';
 import '../models/student_fee_config_model.dart';
+import '../../../../core/sync/sync_engine.dart';
+import '../../../../core/di/injection.dart';
 
 class StudentRepositoryImpl implements StudentRepository {
   final StudentLocalDataSource _localDataSource;
   final StudentRemoteDataSource _remoteDataSource;
+  final SyncEngine _syncEngine;
 
   StudentRepositoryImpl({
     required StudentLocalDataSource localDataSource,
     required StudentRemoteDataSource remoteDataSource,
+    SyncEngine? syncEngine,
   })  : _localDataSource = localDataSource,
-        _remoteDataSource = remoteDataSource;
+        _remoteDataSource = remoteDataSource,
+        _syncEngine = syncEngine ?? getIt<SyncEngine>();
 
   @override
   Future<List<Student>> getStudents(String schoolId) async {
@@ -79,8 +84,13 @@ class StudentRepositoryImpl implements StudentRepository {
       // Save to local database first
       await _localDataSource.createStudent(studentModel);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this student
+      await _syncEngine.logSyncOperation(
+        schoolId: student.schoolId,
+        entityType: 'students',
+        entityId: student.id,
+        operation: 'insert',
+      );
 
       return student;
     } catch (e) {
@@ -96,8 +106,13 @@ class StudentRepositoryImpl implements StudentRepository {
       // Update local database
       await _localDataSource.updateStudent(studentModel);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this student
+      await _syncEngine.logSyncOperation(
+        schoolId: student.schoolId,
+        entityType: 'students',
+        entityId: student.id,
+        operation: 'update',
+      );
 
       return student;
     } catch (e) {
@@ -108,11 +123,22 @@ class StudentRepositoryImpl implements StudentRepository {
   @override
   Future<void> deleteStudent(String id) async {
     try {
+      // Get student first to get schoolId
+      final student = await _localDataSource.getStudentById(id);
+      if (student == null) {
+        throw Exception('Student not found');
+      }
+
       // Delete from local database
       await _localDataSource.deleteStudent(id);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Log sync operation for this student
+      await _syncEngine.logSyncOperation(
+        schoolId: student.schoolId,
+        entityType: 'students',
+        entityId: id,
+        operation: 'delete',
+      );
     } catch (e) {
       throw Exception('Failed to delete student: $e');
     }
@@ -137,8 +163,17 @@ class StudentRepositoryImpl implements StudentRepository {
       // Save to local database
       await _localDataSource.createStudentFeeConfig(configModel);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Get student to get schoolId for sync operation
+      final student = await _localDataSource.getStudentById(config.studentId);
+      if (student != null) {
+        // Log sync operation for this student fee config
+        await _syncEngine.logSyncOperation(
+          schoolId: student.schoolId,
+          entityType: 'student_fee_config',
+          entityId: config.id,
+          operation: 'insert',
+        );
+      }
 
       return config;
     } catch (e) {
@@ -155,8 +190,17 @@ class StudentRepositoryImpl implements StudentRepository {
       // Update local database
       await _localDataSource.updateStudentFeeConfig(configModel);
 
-      // TODO: Queue for sync to remote database
-      // This will be handled by the sync engine
+      // Get student to get schoolId for sync operation
+      final student = await _localDataSource.getStudentById(config.studentId);
+      if (student != null) {
+        // Log sync operation for this student fee config
+        await _syncEngine.logSyncOperation(
+          schoolId: student.schoolId,
+          entityType: 'student_fee_config',
+          entityId: config.id,
+          operation: 'update',
+        );
+      }
 
       return config;
     } catch (e) {
