@@ -29,6 +29,7 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
     on<LoadStudents>(_onLoadStudents);
     on<SearchStudents>(_onSearchStudents);
     on<LoadStudentsByClass>(_onLoadStudentsByClass);
+    on<LoadStudentById>(_onLoadStudentById);
     on<CreateStudent>(_onCreateStudent);
     on<UpdateStudent>(_onUpdateStudent);
     on<DeleteStudent>(_onDeleteStudent);
@@ -76,6 +77,25 @@ class StudentBloc extends Bloc<StudentEvent, StudentState> {
       ));
     } catch (e) {
       emit(StudentError('Failed to load students by class: $e'));
+    }
+  }
+
+  Future<void> _onLoadStudentById(
+      LoadStudentById event, Emitter<StudentState> emit) async {
+    emit(StudentLoading());
+    try {
+      // For now, we'll load all students and find the specific one
+      // This can be optimized later with a specific use case
+      final students = await _getStudentsUseCase(''); // We need schoolId here
+      final student =
+          students.where((s) => s.id == event.studentId).firstOrNull;
+      if (student != null) {
+        emit(StudentLoaded(students: [student]));
+      } else {
+        emit(StudentError('Student not found'));
+      }
+    } catch (e) {
+      emit(StudentError('Failed to load student: $e'));
     }
   }
 

@@ -55,7 +55,20 @@ class _DashboardPageState extends State<DashboardPage>
       vsync: this,
     );
     _listenToSyncStatus();
+    _checkInitialSyncStatus();
     _loadUserContext();
+  }
+
+  void _checkInitialSyncStatus() {
+    // Check if sync is already in progress when dashboard loads
+    final syncEngine = GetIt.instance<SyncEngine>();
+    if (syncEngine.isSyncing) {
+      setState(() {
+        _isSyncing = true;
+      });
+      _rotationController.repeat();
+      print('🔄 Dashboard detected sync already in progress');
+    }
   }
 
   @override
@@ -86,8 +99,12 @@ class _DashboardPageState extends State<DashboardPage>
         print('   School ID: $_schoolId');
         print('   User Role: $_userRole');
 
-        // Trigger initial sync after loading context
-        _triggerManualSync();
+        // Trigger sync in background after a short delay (don't wait for it)
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _triggerManualSync();
+          }
+        });
       }
     } catch (e) {
       print('❌ Error loading user context: $e');
@@ -108,12 +125,18 @@ class _DashboardPageState extends State<DashboardPage>
     final syncEngine = GetIt.instance<SyncEngine>();
     syncEngine.syncStream.listen((result) {
       if (mounted) {
+        print('🔄 Sync status update: ${result.status}');
+
         setState(() {
+          final wasSyncing = _isSyncing;
           _isSyncing = result.status == SyncStatus.syncing;
 
           if (result.status == SyncStatus.syncing) {
-            // Start spinning animation
-            _rotationController.repeat();
+            // Start spinning animation if not already spinning
+            if (!wasSyncing) {
+              _rotationController.repeat();
+              print('🔄 Starting sync animation');
+            }
 
             // Show "Syncing..." banner temporarily (1 second)
             _lastSyncResult = result;
@@ -126,8 +149,11 @@ class _DashboardPageState extends State<DashboardPage>
             });
           } else {
             // Stop spinning animation
-            _rotationController.stop();
-            _rotationController.reset();
+            if (wasSyncing) {
+              _rotationController.stop();
+              _rotationController.reset();
+              print('🔄 Stopping sync animation');
+            }
 
             // Show result (success/error) banner
             _lastSyncResult = result;
@@ -655,13 +681,13 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
   int _presentToday = 0;
   double _totalFeesCollected = 0.0;
   int _attendanceRate = 0;
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadDashboardData();
     _listenToSyncUpdates();
+    _listenToSyncStatus();
   }
 
   void _listenToSyncUpdates() {
@@ -675,9 +701,22 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     });
   }
 
+  // Add sync status tracking for pulsing indicator
+  bool _isSyncingInBackground = false;
+
+  void _listenToSyncStatus() {
+    final syncEngine = GetIt.instance<SyncEngine>();
+    syncEngine.syncStream.listen((result) {
+      if (mounted) {
+        setState(() {
+          _isSyncingInBackground = result.status == SyncStatus.syncing;
+        });
+      }
+    });
+  }
+
   Future<void> _loadDashboardData() async {
     if (widget.schoolId == null) {
-      setState(() => _isLoading = false);
       return;
     }
 
@@ -724,7 +763,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
         _attendanceRate = ((_presentToday / _totalStudents) * 100).round();
       }
 
-      setState(() => _isLoading = false);
+      setState(() {}); // Update UI with new data
 
       print('✅ Dashboard data loaded:');
       print('   Total Students: $_totalStudents');
@@ -733,7 +772,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
       print('   Attendance Rate: $_attendanceRate%');
     } catch (e) {
       print('❌ Error loading dashboard data: $e');
-      setState(() => _isLoading = false);
+      setState(() {}); // Update UI even on error
     }
   }
 
@@ -872,60 +911,57 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
               ),
         ),
         SizedBox(height: 16.h),
-        if (_isLoading)
-          _buildLoadingStats(context)
-        else
-          Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Total Students',
-                      '$_totalStudents',
-                      Icons.people,
-                      Colors.blue,
-                    ),
+        Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    context,
+                    'Total Students',
+                    '$_totalStudents',
+                    Icons.people,
+                    Colors.blue,
                   ),
-                  SizedBox(width: 16.w),
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Present Today',
-                      '$_presentToday',
-                      Icons.check_circle,
-                      Colors.green,
-                    ),
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: _buildStatCard(
+                    context,
+                    'Present Today',
+                    '$_presentToday',
+                    Icons.check_circle,
+                    Colors.green,
                   ),
-                ],
-              ),
-              SizedBox(height: 16.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Fees Collected',
-                      '₵${_totalFeesCollected.toStringAsFixed(0)}',
-                      Icons.payment,
-                      Colors.orange,
-                    ),
+                ),
+              ],
+            ),
+            SizedBox(height: 16.h),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatCard(
+                    context,
+                    'Fees Collected',
+                    '₵${_totalFeesCollected.toStringAsFixed(0)}',
+                    Icons.payment,
+                    Colors.orange,
                   ),
-                  SizedBox(width: 16.w),
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Attendance',
-                      '$_attendanceRate%',
-                      Icons.trending_up,
-                      Colors.purple,
-                    ),
+                ),
+                SizedBox(width: 16.w),
+                Expanded(
+                  child: _buildStatCard(
+                    context,
+                    'Attendance',
+                    '$_attendanceRate%',
+                    Icons.trending_up,
+                    Colors.purple,
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -967,24 +1003,40 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
     IconData icon,
     Color color,
   ) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12.r),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          color: _isSyncingInBackground
+              ? color.withOpacity(0.3)
+              : Theme.of(context).colorScheme.outline.withOpacity(0.2),
+          width: _isSyncingInBackground ? 2 : 1,
         ),
+        boxShadow: _isSyncingInBackground
+            ? [
+                BoxShadow(
+                  color: color.withOpacity(0.1),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ]
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
                 padding: EdgeInsets.all(8.w),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: _isSyncingInBackground
+                      ? color.withOpacity(0.2)
+                      : color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8.r),
                 ),
                 child: Icon(
@@ -994,6 +1046,27 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
                 ),
               ),
               const Spacer(),
+              if (_isSyncingInBackground)
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0.8, end: 1.2),
+                  duration: const Duration(milliseconds: 800),
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: Icon(
+                        Icons.cloud_sync,
+                        color: color.withOpacity(0.7),
+                        size: 16.sp,
+                      ),
+                    );
+                  },
+                  onEnd: () {
+                    if (_isSyncingInBackground && mounted) {
+                      // Restart animation by rebuilding
+                      setState(() {});
+                    }
+                  },
+                ),
             ],
           ),
           SizedBox(height: 12.h),

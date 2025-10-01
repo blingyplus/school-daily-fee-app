@@ -50,6 +50,19 @@ class MyApp extends StatelessWidget {
   Future<void> _handleOnboardingNavigation(
       BuildContext context, String userId, String phoneNumber) async {
     try {
+      // First, trigger sync to ensure local database is populated with remote data
+      print('🔄 Triggering sync before checking onboarding status...');
+      final syncEngine = GetIt.instance<SyncEngine>();
+      final syncResult = await syncEngine.sync(SyncDirection.download);
+
+      if (syncResult.status == SyncStatus.success) {
+        print(
+            '✅ Sync completed successfully, proceeding with onboarding check');
+      } else {
+        print(
+            '⚠️ Sync failed or had issues, proceeding anyway: ${syncResult.message}');
+      }
+
       final onboardingService = GetIt.instance<OnboardingService>();
       final nextStep = await onboardingService.getNextStep(userId);
 
@@ -325,10 +338,23 @@ class MyApp extends StatelessWidget {
                           ),
                         );
                       } else if (state is AuthAuthenticated) {
-                        // Show loading while checking onboarding status
+                        // Show loading while syncing and checking onboarding status
                         return const Scaffold(
                           body: Center(
-                            child: CircularProgressIndicator(),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Syncing your data...',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       } else {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../shared/domain/entities/student.dart';
 import '../bloc/student_bloc.dart';
 import '../bloc/student_event.dart';
 import '../bloc/student_state.dart';
@@ -151,7 +152,7 @@ class _StudentsListPageState extends State<StudentsListPage> {
                           padding: EdgeInsets.only(bottom: 8.h),
                           child: StudentCard(
                             student: student,
-                            onTap: () => _navigateToStudentDetails(student.id),
+                            onTap: () => _navigateToStudentDetails(student),
                             onEdit: () => _navigateToEditStudent(student),
                             onDelete: () => _showDeleteDialog(student),
                           ),
@@ -241,11 +242,14 @@ class _StudentsListPageState extends State<StudentsListPage> {
     );
   }
 
-  void _navigateToStudentDetails(String studentId) {
+  void _navigateToStudentDetails(Student student) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => StudentDetailsPage(studentId: studentId),
+        builder: (context) => StudentDetailsPage(
+          student: student,
+          schoolId: widget.schoolId,
+        ),
       ),
     );
   }

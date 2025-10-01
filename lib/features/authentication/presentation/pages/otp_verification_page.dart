@@ -7,6 +7,7 @@ import 'dart:async';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/services/onboarding_service.dart';
+import '../../../../core/sync/sync_engine.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -37,6 +38,7 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
 
   bool _isLoading = false;
   bool _isResending = false;
+  bool _isSyncing = false;
   int _resendTimer = 0;
   Timer? _timer;
 
@@ -82,71 +84,97 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthAuthenticated) {
-            setState(() {
-              _isLoading = false;
-            });
-            // Check onboarding status and route accordingly
-            _handleOnboardingNavigation(state.user.id, state.user.phoneNumber);
-          } else if (state is AuthError) {
-            setState(() {
-              _isLoading = false;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Theme.of(context).colorScheme.error,
-              ),
-            );
-          } else if (state is AuthOTPResent) {
-            setState(() {
-              _isResending = false;
-            });
-            _startResendTimer();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('OTP sent successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          } else if (state is AuthLoading) {
-            setState(() {
-              _isLoading = true;
-            });
-          }
-        },
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.all(AppConstants.largePadding.w),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height -
-                    MediaQuery.of(context).padding.top -
-                    MediaQuery.of(context).padding.bottom -
-                    (AppConstants.largePadding.w * 2),
-              ),
-              child: IntrinsicHeight(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildHeader(),
-                          SizedBox(height: 48.h),
-                          _buildOTPForm(),
-                        ],
-                      ),
+      body: Stack(
+        children: [
+          BlocListener<AuthBloc, AuthState>(
+            listener: (context, state) {
+              if (state is AuthAuthenticated) {
+                setState(() {
+                  _isLoading = false;
+                });
+                // Check onboarding status and route accordingly
+                _handleOnboardingNavigation(
+                    state.user.id, state.user.phoneNumber);
+              } else if (state is AuthError) {
+                setState(() {
+                  _isLoading = false;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                );
+              } else if (state is AuthOTPResent) {
+                setState(() {
+                  _isResending = false;
+                });
+                _startResendTimer();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('OTP sent successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else if (state is AuthLoading) {
+                setState(() {
+                  _isLoading = true;
+                });
+              }
+            },
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(AppConstants.largePadding.w),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height -
+                        MediaQuery.of(context).padding.top -
+                        MediaQuery.of(context).padding.bottom -
+                        (AppConstants.largePadding.w * 2),
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildHeader(),
+                              SizedBox(height: 48.h),
+                              _buildOTPForm(),
+                            ],
+                          ),
+                        ),
+                        _buildFooter(),
+                      ],
                     ),
-                    _buildFooter(),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+          // Show syncing overlay when syncing
+          if (_isSyncing)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text(
+                      'Syncing your data...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -354,6 +382,33 @@ class _OTPVerificationPageState extends State<OTPVerificationPage> {
   Future<void> _handleOnboardingNavigation(
       String userId, String phoneNumber) async {
     try {
+      // Show syncing state
+      if (mounted) {
+        setState(() {
+          _isSyncing = true;
+        });
+      }
+
+      // First, trigger sync to ensure local database is populated with remote data
+      print('🔄 Triggering sync before checking onboarding status...');
+      final syncEngine = GetIt.instance<SyncEngine>();
+      final syncResult = await syncEngine.sync(SyncDirection.download);
+
+      if (syncResult.status == SyncStatus.success) {
+        print(
+            '✅ Sync completed successfully, proceeding with onboarding check');
+      } else {
+        print(
+            '⚠️ Sync failed or had issues, proceeding anyway: ${syncResult.message}');
+      }
+
+      // Hide syncing state
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+        });
+      }
+
       final onboardingService = GetIt.instance<OnboardingService>();
       final nextStep = await onboardingService.getNextStep(userId);
 

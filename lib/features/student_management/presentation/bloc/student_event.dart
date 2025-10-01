@@ -36,6 +36,15 @@ class LoadStudentsByClass extends StudentEvent {
   List<Object?> get props => [classId];
 }
 
+class LoadStudentById extends StudentEvent {
+  final String studentId;
+
+  const LoadStudentById(this.studentId);
+
+  @override
+  List<Object?> get props => [studentId];
+}
+
 class CreateStudent extends StudentEvent {
   final String schoolId;
   final String classId;

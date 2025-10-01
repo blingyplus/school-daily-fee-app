@@ -1,25 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../shared/domain/entities/student.dart';
+import '../bloc/student_bloc.dart';
+import '../bloc/student_state.dart';
+import 'add_student_page.dart';
 
-class StudentDetailsPage extends StatelessWidget {
-  final String studentId;
+class StudentDetailsPage extends StatefulWidget {
+  final Student student;
+  final String schoolId;
 
   const StudentDetailsPage({
     super.key,
-    required this.studentId,
+    required this.student,
+    required this.schoolId,
   });
 
   @override
+  State<StudentDetailsPage> createState() => _StudentDetailsPageState();
+}
+
+class _StudentDetailsPageState extends State<StudentDetailsPage> {
+  @override
   Widget build(BuildContext context) {
-    // TODO: Implement student details page
-    // This would typically fetch student data and display detailed information
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Student Details'),
-        backgroundColor: Theme.of(context).colorScheme.background,
-        elevation: 0,
-      ),
-      body: const Center(
-        child: Text('Student Details Page - Coming Soon'),
+    return BlocListener<StudentBloc, StudentState>(
+      listener: (context, state) {
+        if (state is StudentError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      },
+      child: AddStudentPage(
+        schoolId: widget.schoolId,
+        student: widget.student,
+        isEditing: true,
       ),
     );
   }
