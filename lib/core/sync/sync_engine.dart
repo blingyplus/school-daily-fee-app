@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 import '../constants/environment.dart' as env;
 import '../../shared/data/datasources/local/database_helper.dart';
@@ -732,7 +733,8 @@ class SyncEngine {
     }
 
     try {
-      final syncLogId = DateTime.now().millisecondsSinceEpoch.toString();
+      const uuid = Uuid();
+      final syncLogId = uuid.v4(); // Use UUID for consistency
       print('📝 Logging sync operation: $entityType:$entityId ($operation)');
 
       final syncLogData = {
@@ -918,10 +920,9 @@ class SyncEngine {
     if (!env.Environment.useSupabase || schoolId.isEmpty) return;
 
     try {
+      const uuid = Uuid();
       final syncLogData = {
-        'id': DateTime.now().millisecondsSinceEpoch.toString() +
-            '_' +
-            entityId.substring(0, 8),
+        'id': uuid.v4(), // Generate a proper UUID
         'school_id': schoolId,
         'entity_type': entityType,
         'entity_id': entityId,

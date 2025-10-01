@@ -42,22 +42,16 @@ class _StudentsListPageState extends State<StudentsListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Students'),
-        backgroundColor: Theme.of(context).colorScheme.background,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _navigateToAddStudent(),
-          ),
-        ],
-      ),
       body: Column(
         children: [
           // Search Bar
           Padding(
-            padding: EdgeInsets.all(AppConstants.defaultPadding.w),
+            padding: EdgeInsets.fromLTRB(
+              AppConstants.defaultPadding.w,
+              AppConstants.defaultPadding.h,
+              AppConstants.defaultPadding.w,
+              AppConstants.smallPadding.h,
+            ),
             child: StudentSearchBar(
               controller: _searchController,
               onSearchChanged: (query) {

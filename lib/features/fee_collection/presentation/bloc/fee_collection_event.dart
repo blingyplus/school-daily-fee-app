@@ -93,3 +93,40 @@ class DeleteFeeCollection extends FeeCollectionEvent {
 class GenerateReceiptNumber extends FeeCollectionEvent {
   const GenerateReceiptNumber();
 }
+
+class CollectBulkFee extends FeeCollectionEvent {
+  final String schoolId;
+  final String studentId;
+  final String collectedBy;
+  final List<Map<String, dynamic>> feeCollections;
+  final double amountGiven;
+  final DateTime paymentDate;
+  final PaymentMethod paymentMethod;
+  final String receiptNumber;
+  final String? notes;
+
+  const CollectBulkFee({
+    required this.schoolId,
+    required this.studentId,
+    required this.collectedBy,
+    required this.feeCollections,
+    required this.amountGiven,
+    required this.paymentDate,
+    required this.paymentMethod,
+    required this.receiptNumber,
+    this.notes,
+  });
+
+  @override
+  List<Object?> get props => [
+        schoolId,
+        studentId,
+        collectedBy,
+        feeCollections,
+        amountGiven,
+        paymentDate,
+        paymentMethod,
+        receiptNumber,
+        notes,
+      ];
+}

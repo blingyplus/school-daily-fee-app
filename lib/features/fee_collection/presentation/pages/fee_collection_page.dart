@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../../../../core/constants/app_constants.dart';
-import '../../../../shared/domain/entities/fee_collection.dart';
 import '../bloc/fee_collection_bloc.dart';
 import '../bloc/fee_collection_event.dart';
 import '../bloc/fee_collection_state.dart';
-import '../widgets/fee_collection_form.dart';
+import '../widgets/streamlined_fee_collection_form.dart';
 import '../widgets/fee_collection_list.dart';
+import '../../../student_management/presentation/bloc/student_bloc.dart';
 
 class FeeCollectionPage extends StatefulWidget {
   final String schoolId;
@@ -40,25 +39,10 @@ class _FeeCollectionPageState extends State<FeeCollectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Fee Collection'),
-        backgroundColor: Theme.of(context).colorScheme.background,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(_showForm ? Icons.list : Icons.add),
-            onPressed: () {
-              setState(() {
-                _showForm = !_showForm;
-              });
-            },
-          ),
-        ],
-      ),
       body: Column(
         children: [
-          // Date Selector
-          _buildDateSelector(),
+          // Date Selector (only show when not in form mode)
+          if (!_showForm) _buildDateSelector(),
 
           // Content
           Expanded(
@@ -66,6 +50,24 @@ class _FeeCollectionPageState extends State<FeeCollectionPage> {
           ),
         ],
       ),
+      floatingActionButton: _showForm
+          ? FloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  _showForm = false;
+                });
+              },
+              child: const Icon(Icons.close),
+            )
+          : FloatingActionButton.extended(
+              onPressed: () {
+                setState(() {
+                  _showForm = true;
+                });
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Collect Fee'),
+            ),
     );
   }
 
@@ -120,15 +122,19 @@ class _FeeCollectionPageState extends State<FeeCollectionPage> {
   }
 
   Widget _buildForm() {
-    return FeeCollectionForm(
-      schoolId: widget.schoolId,
-      paymentDate: _selectedDate,
-      onFeeCollected: () {
-        setState(() {
-          _showForm = false;
-        });
-        _loadFeeCollections();
-      },
+    return BlocProvider.value(
+      value: context.read<StudentBloc>(),
+      child: StreamlinedFeeCollectionForm(
+        schoolId: widget.schoolId,
+        paymentDate: _selectedDate,
+        autoFocusSearch: true,
+        onFeeCollected: () {
+          setState(() {
+            _showForm = false;
+          });
+          _loadFeeCollections();
+        },
+      ),
     );
   }
 

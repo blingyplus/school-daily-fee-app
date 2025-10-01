@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../shared/domain/entities/fee_collection.dart';
 import '../../domain/usecases/get_fee_collections_usecase.dart';
 import '../../domain/usecases/get_student_fee_history_usecase.dart';
 import '../../domain/usecases/collect_fee_usecase.dart';
@@ -25,6 +26,7 @@ class FeeCollectionBloc extends Bloc<FeeCollectionEvent, FeeCollectionState> {
     on<LoadFeeCollections>(_onLoadFeeCollections);
     on<LoadStudentFeeHistory>(_onLoadStudentFeeHistory);
     on<CollectFee>(_onCollectFee);
+    on<CollectBulkFee>(_onCollectBulkFee);
     on<UpdateFeeCollection>(_onUpdateFeeCollection);
     on<DeleteFeeCollection>(_onDeleteFeeCollection);
     on<GenerateReceiptNumber>(_onGenerateReceiptNumber);
@@ -88,6 +90,43 @@ class FeeCollectionBloc extends Bloc<FeeCollectionEvent, FeeCollectionState> {
       ));
     } catch (e) {
       emit(FeeCollectionError('Failed to collect fee: $e'));
+    }
+  }
+
+  Future<void> _onCollectBulkFee(
+      CollectBulkFee event, Emitter<FeeCollectionState> emit) async {
+    emit(FeeCollectionOperationLoading());
+    try {
+      // Calculate coverage dates based on payment date
+      final coverageStartDate = event.paymentDate;
+      final coverageEndDate = event.paymentDate;
+
+      // Collect each fee type separately
+      for (final feeData in event.feeCollections) {
+        await _collectFeeUseCase(
+          schoolId: event.schoolId,
+          studentId: event.studentId,
+          collectedBy: event.collectedBy,
+          feeType: feeData['feeType'] as FeeType,
+          amountPaid: feeData['amount'] as double,
+          paymentDate: event.paymentDate,
+          coverageStartDate: coverageStartDate,
+          coverageEndDate: coverageEndDate,
+          paymentMethod: event.paymentMethod,
+          receiptNumber: event.receiptNumber,
+          notes: event.notes,
+        );
+      }
+
+      // Reload fee collections after collection
+      final collections =
+          await _getFeeCollectionsUseCase(event.schoolId, event.paymentDate);
+      emit(FeeCollectionOperationSuccess(
+        message: 'Fees collected successfully',
+        collections: collections,
+      ));
+    } catch (e) {
+      emit(FeeCollectionError('Failed to collect fees: $e'));
     }
   }
 

@@ -20,6 +20,8 @@ import '../../features/student_management/domain/usecases/search_students_usecas
 import '../../features/student_management/domain/usecases/create_student_usecase.dart';
 import '../../features/student_management/domain/usecases/update_student_usecase.dart';
 import '../../features/student_management/domain/usecases/delete_student_usecase.dart';
+import '../../features/student_management/domain/usecases/get_student_fee_config_usecase.dart';
+import '../../features/student_management/domain/usecases/update_student_fee_config_usecase.dart';
 import '../../features/student_management/presentation/bloc/student_bloc.dart';
 import '../../features/attendance/presentation/bloc/attendance_bloc.dart';
 import '../../features/attendance/domain/repositories/attendance_repository.dart';
@@ -162,6 +164,21 @@ abstract class DIModule {
   Future<DeleteStudentUseCase> get deleteStudentUseCase async {
     final repository = await studentRepository;
     return DeleteStudentUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<GetStudentFeeConfigUseCase> get getStudentFeeConfigUseCase async {
+    final repository = await studentRepository;
+    return GetStudentFeeConfigUseCase(repository);
+  }
+
+  @preResolve
+  @singleton
+  Future<UpdateStudentFeeConfigUseCase>
+      get updateStudentFeeConfigUseCase async {
+    final repository = await studentRepository;
+    return UpdateStudentFeeConfigUseCase(repository);
   }
 
   @preResolve
