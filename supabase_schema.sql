@@ -301,9 +301,6 @@ CREATE POLICY "School teachers access policy" ON public.school_teachers
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Similar policies for other tables...
--- (Additional RLS policies would be added here for complete security)
-
 -- Functions for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -353,47 +350,81 @@ CREATE TRIGGER update_holidays_updated_at BEFORE UPDATE ON public.holidays
 CREATE TRIGGER update_school_config_updated_at BEFORE UPDATE ON public.school_config
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Keep stricter policies for admins (sensitive operations)
-CREATE POLICY "Admins access policy" ON public.admins
-    FOR ALL USING (user_id = auth.uid())
-    WITH CHECK (user_id = auth.uid());
+-- RLS Policies for all tables (allowing authenticated users for multi-device sync)
 
--- Simplified RLS policies for teachers
+-- Teachers policy - allow all authenticated users
 CREATE POLICY "Teachers access policy" ON public.teachers
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Simplified RLS policies for classes
+-- Admins policy - allow all authenticated users (for sync)
+CREATE POLICY "Admins access policy" ON public.admins
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Classes policy
 CREATE POLICY "Classes school access" ON public.classes
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Simplified RLS policies for students
+-- Students policy
 CREATE POLICY "Students school access" ON public.students
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Simplified RLS policies for attendance records
+-- Student fee config policy
+CREATE POLICY "Student fee config access" ON public.student_fee_config
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Scholarships policy
+CREATE POLICY "Scholarships access" ON public.scholarships
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Attendance records policy
 CREATE POLICY "Attendance school access" ON public.attendance_records
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Simplified RLS policies for fee collections
+-- Fee collections policy
 CREATE POLICY "Fee collections school access" ON public.fee_collections
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Simplified RLS policies for holidays
+-- Holidays policy
 CREATE POLICY "Holidays school access" ON public.holidays
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Simplified RLS policies for sync log
+-- School config policy
+CREATE POLICY "School config access" ON public.school_config
+    FOR ALL USING (auth.uid() IS NOT NULL)
+    WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Sync log policy (critical for multi-device sync tracking)
 CREATE POLICY "Sync log school access" ON public.sync_log
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
 
--- Simplified RLS policies for audit log
+-- Audit log policy
 CREATE POLICY "Audit log school access" ON public.audit_log
     FOR ALL USING (auth.uid() IS NOT NULL)
     WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Grant necessary permissions to authenticated users
+GRANT ALL ON public.users TO authenticated;
+GRANT ALL ON public.schools TO authenticated;
+GRANT ALL ON public.teachers TO authenticated;
+GRANT ALL ON public.school_teachers TO authenticated;
+GRANT ALL ON public.admins TO authenticated;
+GRANT ALL ON public.classes TO authenticated;
+GRANT ALL ON public.students TO authenticated;
+GRANT ALL ON public.student_fee_config TO authenticated;
+GRANT ALL ON public.scholarships TO authenticated;
+GRANT ALL ON public.attendance_records TO authenticated;
+GRANT ALL ON public.fee_collections TO authenticated;
+GRANT ALL ON public.holidays TO authenticated;
+GRANT ALL ON public.school_config TO authenticated;
+GRANT ALL ON public.sync_log TO authenticated;
+GRANT ALL ON public.audit_log TO authenticated;

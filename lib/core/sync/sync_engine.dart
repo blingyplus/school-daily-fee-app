@@ -127,8 +127,9 @@ class SyncEngine {
     await sync(SyncDirection.bidirectional);
   }
 
-  /// Manual sync trigger
-  Future<SyncResult> sync(SyncDirection direction) async {
+  /// Manual sync trigger with smart verification
+  Future<SyncResult> sync(SyncDirection direction,
+      {bool verifyFirst = true}) async {
     if (_isSyncing) {
       return SyncResult(
         status: SyncStatus.failed,
@@ -142,6 +143,15 @@ class SyncEngine {
     try {
       int totalRecords = 0;
       List<SyncConflict> conflicts = [];
+
+      // First, verify sync status if enabled
+      if (verifyFirst && env.Environment.useSupabase) {
+        print('🔍 Verifying sync status before sync...');
+        final resetCount = await verifyAndFixSyncStatus();
+        if (resetCount > 0) {
+          print('✅ Reset $resetCount records that were missing remotely');
+        }
+      }
 
       switch (direction) {
         case SyncDirection.upload:
@@ -355,7 +365,7 @@ class SyncEngine {
     }
   }
 
-  /// Upload a single record to remote
+  /// Upload a single record to remote with smart conflict resolution
   Future<void> _uploadRecord(Map<String, dynamic> record) async {
     final entityType = record['entity_type'] as String;
     final operation = record['operation'] as String;
@@ -374,21 +384,84 @@ class SyncEngine {
 
     if (recordData.isEmpty) return;
 
-    final data = recordData.first;
+    final localData = recordData.first;
 
     switch (operation) {
       case 'insert':
       case 'update':
         // Convert timestamps to ISO format for Supabase
-        final supabaseData = _convertTimestampsToIso(data);
+        final supabaseData = _convertTimestampsToIso(localData);
+
+        // Check if record exists remotely and compare timestamps
+        final remoteRecord = await supabaseClient
+            .from(entityType)
+            .select()
+            .eq('id', entityId)
+            .maybeSingle();
+
+        if (remoteRecord != null) {
+          // Record exists remotely, check which is newer
+          final localUpdatedAt =
+              DateTime.parse(supabaseData['updated_at'] as String);
+          final remoteUpdatedAt =
+              DateTime.parse(remoteRecord['updated_at'] as String);
+
+          if (remoteUpdatedAt.isAfter(localUpdatedAt)) {
+            // Remote is newer, skip upload and update local instead
+            print(
+                '⚠️ Remote record is newer for $entityType:$entityId, skipping upload');
+            await _applyRemoteChange(entityType, remoteRecord);
+            return;
+          }
+        }
 
         // Handle foreign key dependencies
         if (entityType == 'teachers' && supabaseData.containsKey('user_id')) {
-          // Ensure user exists in Supabase before creating teacher
           await _ensureUserExistsInSupabase(supabaseData['user_id'] as String);
         }
 
+        if (entityType == 'school_teachers') {
+          if (supabaseData.containsKey('teacher_id')) {
+            await _ensureTeacherExistsInSupabase(
+                supabaseData['teacher_id'] as String);
+          }
+          if (supabaseData.containsKey('school_id')) {
+            await _ensureSchoolExistsInSupabase(
+                supabaseData['school_id'] as String);
+          }
+        }
+
+        if (entityType == 'admins') {
+          if (supabaseData.containsKey('user_id')) {
+            await _ensureUserExistsInSupabase(
+                supabaseData['user_id'] as String);
+          }
+          if (supabaseData.containsKey('school_id')) {
+            await _ensureSchoolExistsInSupabase(
+                supabaseData['school_id'] as String);
+          }
+        }
+
+        if (entityType == 'students' && supabaseData.containsKey('school_id')) {
+          await _ensureSchoolExistsInSupabase(
+              supabaseData['school_id'] as String);
+        }
+
+        // Upload to remote
         await supabaseClient.from(entityType).upsert(supabaseData);
+        print('✅ Uploaded $entityType:$entityId to remote');
+
+        // Log to remote sync_log for tracking across devices (if school_id exists)
+        final schoolIdForLog = supabaseData['school_id'] as String? ??
+            (entityType == 'schools' ? entityId : null);
+        if (schoolIdForLog != null) {
+          await _logToRemoteSyncLog(
+            entityType: entityType,
+            entityId: entityId,
+            operation: operation,
+            schoolId: schoolIdForLog,
+          );
+        }
         break;
       case 'delete':
         await supabaseClient.from(entityType).delete().eq('id', entityId);
@@ -433,12 +506,6 @@ class SyncEngine {
   /// Ensure user exists in Supabase before creating dependent records
   Future<void> _ensureUserExistsInSupabase(String userId) async {
     try {
-      // Debug: Check authentication state
-      final currentUser = supabaseClient.auth.currentUser;
-      print('🔐 Current authenticated user: ${currentUser?.id}');
-      print(
-          '🔐 Auth session exists: ${supabaseClient.auth.currentSession != null}');
-
       // Check if user exists in Supabase
       final existingUser = await supabaseClient
           .from('users')
@@ -457,16 +524,82 @@ class SyncEngine {
 
         if (localUser.isNotEmpty) {
           final userData = _convertTimestampsToIso(localUser.first);
-          print('📝 Attempting to create user in Supabase: $userId');
-          print('📝 User data: $userData');
+          print('📝 Creating user in Supabase: $userId');
           await supabaseClient.from('users').upsert(userData);
           print('✅ Created user in Supabase: $userId');
         }
-      } else {
-        print('✅ User already exists in Supabase: $userId');
       }
     } catch (e) {
-      print('❌ Error ensuring user exists in Supabase: $e');
+      print('❌ Error ensuring user exists: $e');
+      throw e;
+    }
+  }
+
+  /// Ensure teacher exists in Supabase before creating school_teachers
+  Future<void> _ensureTeacherExistsInSupabase(String teacherId) async {
+    try {
+      // Check if teacher exists in Supabase
+      final existingTeacher = await supabaseClient
+          .from('teachers')
+          .select('id, user_id')
+          .eq('id', teacherId)
+          .maybeSingle();
+
+      if (existingTeacher == null) {
+        // Teacher doesn't exist, get from local database and create
+        final localTeacher = await database.query(
+          DatabaseHelper.tableTeachers,
+          where: 'id = ?',
+          whereArgs: [teacherId],
+          limit: 1,
+        );
+
+        if (localTeacher.isNotEmpty) {
+          // First ensure the user exists
+          final userId = localTeacher.first['user_id'] as String;
+          await _ensureUserExistsInSupabase(userId);
+
+          // Now create the teacher
+          final teacherData = _convertTimestampsToIso(localTeacher.first);
+          print('📝 Creating teacher in Supabase: $teacherId');
+          await supabaseClient.from('teachers').upsert(teacherData);
+          print('✅ Created teacher in Supabase: $teacherId');
+        }
+      }
+    } catch (e) {
+      print('❌ Error ensuring teacher exists: $e');
+      throw e;
+    }
+  }
+
+  /// Ensure school exists in Supabase before creating dependent records
+  Future<void> _ensureSchoolExistsInSupabase(String schoolId) async {
+    try {
+      // Check if school exists in Supabase
+      final existingSchool = await supabaseClient
+          .from('schools')
+          .select('id')
+          .eq('id', schoolId)
+          .maybeSingle();
+
+      if (existingSchool == null) {
+        // School doesn't exist, get from local database and create
+        final localSchool = await database.query(
+          DatabaseHelper.tableSchools,
+          where: 'id = ?',
+          whereArgs: [schoolId],
+          limit: 1,
+        );
+
+        if (localSchool.isNotEmpty) {
+          final schoolData = _convertTimestampsToIso(localSchool.first);
+          print('📝 Creating school in Supabase: $schoolId');
+          await supabaseClient.from('schools').upsert(schoolData);
+          print('✅ Created school in Supabase: $schoolId');
+        }
+      }
+    } catch (e) {
+      print('❌ Error ensuring school exists: $e');
       throw e;
     }
   }
@@ -664,6 +797,163 @@ class SyncEngine {
       print('✅ Reset $result failed sync records to pending status');
     } catch (e) {
       print('❌ Error resetting failed sync records: $e');
+    }
+  }
+
+  /// Reset all synced records back to pending
+  /// This is useful when the remote database has been cleared
+  Future<void> resetSyncedRecords() async {
+    try {
+      print('🔄 Resetting synced records to pending...');
+
+      final result = await database.update(
+        DatabaseHelper.tableSyncLog,
+        {
+          'sync_status': 'pending',
+          'synced_at': null,
+        },
+        where: 'sync_status = ?',
+        whereArgs: ['synced'],
+      );
+
+      print('✅ Reset $result synced records to pending status');
+      print(
+          '💡 Trigger a manual sync to re-upload all data to the remote database');
+    } catch (e) {
+      print('❌ Error resetting synced records: $e');
+    }
+  }
+
+  /// Reset all sync records (synced, failed, and pending) back to pending
+  /// This is useful when you want to completely re-sync everything
+  Future<void> resetAllSyncRecords() async {
+    try {
+      print('🔄 Resetting all sync records to pending...');
+
+      final result = await database.update(
+        DatabaseHelper.tableSyncLog,
+        {
+          'sync_status': 'pending',
+          'synced_at': null,
+          'conflict_data': null,
+        },
+      );
+
+      print('✅ Reset $result sync records to pending status');
+      print(
+          '💡 Trigger a manual sync to re-upload all data to the remote database');
+    } catch (e) {
+      print('❌ Error resetting all sync records: $e');
+    }
+  }
+
+  /// Log sync operation to remote sync_log table
+  Future<void> _logToRemoteSyncLog({
+    required String entityType,
+    required String entityId,
+    required String operation,
+    required String schoolId,
+  }) async {
+    if (!env.Environment.useSupabase || schoolId.isEmpty) return;
+
+    try {
+      final syncLogData = {
+        'id': DateTime.now().millisecondsSinceEpoch.toString() +
+            '_' +
+            entityId.substring(0, 8),
+        'school_id': schoolId,
+        'entity_type': entityType,
+        'entity_id': entityId,
+        'operation': operation,
+        'timestamp': DateTime.now().toIso8601String(),
+        'sync_status': 'synced',
+        'synced_at': DateTime.now().toIso8601String(),
+        'created_at': DateTime.now().toIso8601String(),
+      };
+
+      await supabaseClient.from('sync_log').upsert(syncLogData);
+      print('📝 Logged to remote sync_log: $entityType:$entityId');
+    } catch (e) {
+      // Don't fail the sync if remote logging fails
+      print('⚠️ Failed to log to remote sync_log: $e');
+    }
+  }
+
+  /// Verify sync status against remote database and reset missing records
+  /// This checks which records are actually synced remotely
+  Future<int> verifyAndFixSyncStatus() async {
+    if (!env.Environment.useSupabase) {
+      print('⚠️ Supabase disabled, skipping sync verification');
+      return 0;
+    }
+
+    try {
+      print('🔍 Verifying sync status against remote database...');
+
+      // Get all local sync records marked as 'synced'
+      final localSyncedRecords = await database.query(
+        DatabaseHelper.tableSyncLog,
+        where: 'sync_status = ?',
+        whereArgs: ['synced'],
+      );
+
+      print(
+          '📊 Found ${localSyncedRecords.length} locally synced records to verify');
+
+      int resetCount = 0;
+
+      // Check each record against remote database
+      for (final localRecord in localSyncedRecords) {
+        final entityType = localRecord['entity_type'] as String;
+        final entityId = localRecord['entity_id'] as String;
+
+        // Check if this entity actually exists in the remote table
+        try {
+          final remoteEntity = await supabaseClient
+              .from(entityType)
+              .select('id')
+              .eq('id', entityId)
+              .maybeSingle();
+
+          if (remoteEntity == null) {
+            // Entity doesn't exist remotely, reset to pending
+            print(
+                '❌ Entity not found remotely: $entityType:$entityId - resetting to pending');
+
+            await database.update(
+              DatabaseHelper.tableSyncLog,
+              {
+                'sync_status': 'pending',
+                'synced_at': null,
+              },
+              where: 'id = ?',
+              whereArgs: [localRecord['id']],
+            );
+
+            resetCount++;
+          }
+        } catch (e) {
+          // If there's an error checking, reset to pending to be safe
+          print(
+              '⚠️ Error checking $entityType:$entityId - resetting to pending: $e');
+          await database.update(
+            DatabaseHelper.tableSyncLog,
+            {
+              'sync_status': 'pending',
+              'synced_at': null,
+            },
+            where: 'id = ?',
+            whereArgs: [localRecord['id']],
+          );
+          resetCount++;
+        }
+      }
+
+      print('✅ Verification complete: $resetCount records reset to pending');
+      return resetCount;
+    } catch (e) {
+      print('❌ Error verifying sync status: $e');
+      return 0;
     }
   }
 

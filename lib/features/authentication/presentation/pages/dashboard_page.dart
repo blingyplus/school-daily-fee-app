@@ -25,6 +25,8 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   int _selectedIndex = 0;
+  bool _isSyncing = false;
+  SyncResult? _lastSyncResult;
 
   final List<Widget> _pages = [
     const DashboardHomePage(),
@@ -33,6 +35,34 @@ class _DashboardPageState extends State<DashboardPage> {
     const FeeCollectionTab(),
     const ReportsPage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToSyncStatus();
+  }
+
+  void _listenToSyncStatus() {
+    final syncEngine = GetIt.instance<SyncEngine>();
+    syncEngine.syncStream.listen((result) {
+      if (mounted) {
+        setState(() {
+          _isSyncing = result.status == SyncStatus.syncing;
+          if (result.status != SyncStatus.syncing) {
+            _lastSyncResult = result;
+            // Clear the result after 5 seconds
+            Future.delayed(const Duration(seconds: 5), () {
+              if (mounted) {
+                setState(() {
+                  _lastSyncResult = null;
+                });
+              }
+            });
+          }
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,48 +88,91 @@ class _DashboardPageState extends State<DashboardPage> {
           backgroundColor: Theme.of(context).colorScheme.background,
           elevation: 0,
           actions: [
+            // Smart Sync Button - Handles everything intelligently with spinning animation
             IconButton(
-              icon: Icon(
-                Icons.bug_report,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              onPressed: () {
-                _debugDatabaseState(context);
-              },
-              tooltip: 'Debug Database',
+              icon: _isSyncing
+                  ? SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      Icons.cloud_sync,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+              onPressed: _isSyncing ? null : () => _smartSync(context),
+              tooltip: _isSyncing ? 'Syncing...' : 'Smart Sync',
             ),
-            IconButton(
+            // Advanced Options Menu
+            PopupMenuButton<String>(
               icon: Icon(
-                Icons.refresh,
+                Icons.more_vert,
                 color: Theme.of(context).colorScheme.onSurface,
               ),
-              onPressed: () {
-                _resetFailedSyncRecords(context);
+              tooltip: 'More Options',
+              onSelected: (value) {
+                switch (value) {
+                  case 'debug':
+                    _debugDatabaseState(context);
+                    break;
+                  case 'reset_all':
+                    _resetAllSyncRecords(context);
+                    break;
+                  case 'logout':
+                    _showLogoutDialog(context);
+                    break;
+                }
               },
-              tooltip: 'Reset Failed Sync',
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.sync,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              onPressed: () {
-                _triggerManualSync(context);
-              },
-              tooltip: 'Sync Data',
-            ),
-            IconButton(
-              icon: Icon(
-                Icons.logout,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              onPressed: () {
-                _showLogoutDialog(context);
-              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'debug',
+                  child: Row(
+                    children: [
+                      Icon(Icons.bug_report, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text('Debug Database'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'reset_all',
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text('Reset Sync (DB Cleared)'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Logout'),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        body: _pages[_selectedIndex],
+        body: Column(
+          children: [
+            // Sync Status Banner
+            if (_isSyncing || _lastSyncResult != null)
+              _buildSyncBanner(context),
+            // Main content
+            Expanded(child: _pages[_selectedIndex]),
+          ],
+        ),
         bottomNavigationBar: BottomNavigationBar(
           type: BottomNavigationBarType.fixed,
           currentIndex: _selectedIndex,
@@ -154,6 +227,96 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
+  Widget _buildSyncBanner(BuildContext context) {
+    Color backgroundColor;
+    IconData icon;
+    String message;
+    Color textColor;
+
+    if (_isSyncing) {
+      backgroundColor = Colors.blue.shade50;
+      icon = Icons.sync;
+      message = 'Syncing data...';
+      textColor = Colors.blue.shade900;
+    } else if (_lastSyncResult != null) {
+      switch (_lastSyncResult!.status) {
+        case SyncStatus.success:
+          backgroundColor = Colors.green.shade50;
+          icon = Icons.check_circle;
+          message =
+              'Sync complete! ${_lastSyncResult!.recordsProcessed ?? 0} new records processed.';
+          textColor = Colors.green.shade900;
+          break;
+        case SyncStatus.failed:
+          backgroundColor = Colors.red.shade50;
+          icon = Icons.error;
+          message = 'Sync failed: ${_lastSyncResult!.message}';
+          textColor = Colors.red.shade900;
+          break;
+        default:
+          backgroundColor = Colors.orange.shade50;
+          icon = Icons.warning;
+          message = _lastSyncResult!.message ?? 'Sync status unknown';
+          textColor = Colors.orange.shade900;
+      }
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          if (_isSyncing)
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(textColor),
+              ),
+            )
+          else
+            Icon(icon, color: textColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (!_isSyncing && _lastSyncResult != null)
+            IconButton(
+              icon: Icon(Icons.close, color: textColor, size: 18),
+              onPressed: () {
+                setState(() {
+                  _lastSyncResult = null;
+                });
+              },
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+        ],
+      ),
+    );
+  }
+
   void _resetFailedSyncRecords(BuildContext context) async {
     try {
       print('🔄 Reset failed sync records triggered from dashboard');
@@ -175,6 +338,157 @@ class _DashboardPageState extends State<DashboardPage> {
           SnackBar(
             content: Text('Reset failed: $e'),
             backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _resetSyncedRecords(BuildContext context) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Reset Synced Records?'),
+          content: const Text(
+            'This will mark all synced records as pending. '
+            'Use this when you have cleared the remote database. '
+            'Are you sure?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Reset'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      print('🔄 Reset synced records triggered from dashboard');
+      final syncEngine = GetIt.instance<SyncEngine>();
+      await syncEngine.resetSyncedRecords();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Synced records reset to pending. Trigger a sync to re-upload.'),
+            backgroundColor: Colors.blue,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Reset synced records failed: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Reset failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _resetAllSyncRecords(BuildContext context) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('Database Cleared?'),
+            ],
+          ),
+          content: const Text(
+            'Use this ONLY when the remote database has been cleared.\n\n'
+            'This will mark all local data for re-sync.\n\n'
+            'After resetting, click the Smart Sync button to upload everything.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Reset & Re-sync'),
+              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      print('🔄 Reset all sync records triggered from dashboard');
+      final syncEngine = GetIt.instance<SyncEngine>();
+      await syncEngine.resetAllSyncRecords();
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+                '✅ Sync reset complete. Now tap Smart Sync to upload all data.'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Sync Now',
+              textColor: Colors.white,
+              onPressed: () => _smartSync(context),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Reset all sync records failed: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Reset failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Smart Sync - ONE button to handle everything (non-blocking)
+  void _smartSync(BuildContext context) async {
+    try {
+      print('🚀 Smart Sync triggered from dashboard');
+      final syncEngine = GetIt.instance<SyncEngine>();
+
+      // No blocking dialog - just start syncing
+      // The banner will show the progress automatically via stream
+      syncEngine.sync(SyncDirection.bidirectional);
+    } catch (e) {
+      print('❌ Smart sync failed: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync error: $e'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _smartSync(context),
+            ),
           ),
         );
       }
@@ -298,51 +612,11 @@ class DashboardHomePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildWelcomeCard(context),
-          SizedBox(height: 24.h),
           _buildQuickStats(context),
           SizedBox(height: 24.h),
           _buildQuickActions(context),
           SizedBox(height: 24.h),
           _buildRecentActivity(context),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWelcomeCard(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(24.w),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Theme.of(context).colorScheme.primary,
-            Theme.of(context).colorScheme.primary.withOpacity(0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16.r),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Welcome back!',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          SizedBox(height: 8.h),
-          Text(
-            'Manage your school\'s daily fees efficiently',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color:
-                      Theme.of(context).colorScheme.onPrimary.withOpacity(0.9),
-                ),
-          ),
         ],
       ),
     );
