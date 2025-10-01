@@ -142,7 +142,7 @@ CREATE TABLE public.attendance_records (
     school_id UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
     class_id UUID NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
-    recorded_by UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+    recorded_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     attendance_date DATE NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('present', 'absent', 'late', 'excused')),
     notes TEXT,
@@ -159,7 +159,7 @@ CREATE TABLE public.fee_collections (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     school_id UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
     student_id UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
-    collected_by UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+    collected_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     fee_type TEXT NOT NULL CHECK (fee_type IN ('canteen', 'transport', 'both')),
     amount_paid DECIMAL(10,2) NOT NULL,
     payment_date DATE NOT NULL,
@@ -242,8 +242,10 @@ CREATE INDEX idx_students_class_id ON public.students(class_id);
 CREATE INDEX idx_students_student_id ON public.students(school_id, student_id);
 CREATE INDEX idx_attendance_records_school_date ON public.attendance_records(school_id, attendance_date);
 CREATE INDEX idx_attendance_records_student_date ON public.attendance_records(student_id, attendance_date);
+CREATE INDEX idx_attendance_records_recorded_by ON public.attendance_records(recorded_by);
 CREATE INDEX idx_fee_collections_school_date ON public.fee_collections(school_id, payment_date);
 CREATE INDEX idx_fee_collections_student_date ON public.fee_collections(student_id, payment_date);
+CREATE INDEX idx_fee_collections_collected_by ON public.fee_collections(collected_by);
 CREATE INDEX idx_sync_log_school_status ON public.sync_log(school_id, sync_status);
 CREATE INDEX idx_sync_log_entity_type ON public.sync_log(entity_type);
 CREATE INDEX idx_audit_log_school_user ON public.audit_log(school_id, user_id);

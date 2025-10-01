@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -1252,13 +1251,47 @@ class _StreamlinedFeeCollectionFormState
       });
     }
 
-    // Get current user ID from SharedPreferences
-    final prefs = getIt<SharedPreferences>();
-    final userId = prefs.getString('profile_user_id');
+    // Get current authenticated user ID from database
+    String? userId;
+    try {
+      final db = getIt<Database>();
+
+      // Get the authenticated user (collected_by now references auth.users)
+      final userResults = await db.query(
+        'users',
+        where: 'is_active = ?',
+        whereArgs: [1],
+        limit: 1,
+      );
+
+      if (userResults.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User not found. Please log in again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Use the auth user ID directly (works for both teachers and admins)
+      userId = userResults.first['id'] as String;
+    } catch (e) {
+      print('Error getting user ID: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error retrieving user information: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     if (!mounted) return;
 
-    if (userId == null) {
+    if (userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('User not found. Please log in again.'),

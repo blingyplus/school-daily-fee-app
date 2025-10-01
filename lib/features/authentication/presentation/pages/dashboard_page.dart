@@ -9,6 +9,7 @@ import '../../../../core/navigation/app_router.dart';
 import '../../../../core/sync/sync_engine.dart';
 import '../../../../core/services/onboarding_service.dart';
 import '../../../../shared/data/datasources/local/database_helper.dart';
+import '../../../../shared/data/utils/sqlite_converter.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -895,7 +896,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
               '${student.first['first_name']} ${student.first['last_name']}';
           final feeType = fee['fee_type'] as String;
           final amount = fee['amount_paid'] as double;
-          final timestamp = fee['collected_at'] as int;
+          final timestamp = SqliteConverter.safeInt(fee['collected_at']);
 
           activities.add({
             'title':
@@ -929,7 +930,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
         if (student.isNotEmpty) {
           final studentName =
               '${student.first['first_name']} ${student.first['last_name']}';
-          final timestamp = attendance['recorded_at'] as int;
+          final timestamp = SqliteConverter.safeInt(attendance['recorded_at']);
 
           activities.add({
             'title': '$studentName marked present',
