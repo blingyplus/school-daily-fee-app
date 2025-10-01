@@ -30,8 +30,10 @@ class _AttendanceMarkingPageState extends State<AttendanceMarkingPage> {
   DateTime _selectedDate = DateTime.now();
   final Map<String, AttendanceStatus> _attendanceMap = {};
   final Map<String, String> _notesMap = {};
+  final Set<String> _selectedStudents = {};
   List<Student> _students = [];
   bool _isLoading = true;
+  bool _isSelectionMode = false;
 
   @override
   void initState() {
@@ -86,15 +88,29 @@ class _AttendanceMarkingPageState extends State<AttendanceMarkingPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Attendance - ${widget.className}'),
+        title: Text(_isSelectionMode
+            ? '${_selectedStudents.length} selected'
+            : 'Attendance - ${widget.className}'),
         backgroundColor: Theme.of(context).colorScheme.background,
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _saveAttendance,
-          ),
-        ],
+        leading: _isSelectionMode
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: _exitSelectionMode,
+              )
+            : null,
+        actions: _isSelectionMode
+            ? _buildSelectionModeActions()
+            : [
+                IconButton(
+                  icon: const Icon(Icons.checklist),
+                  onPressed: _enterSelectionMode,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.save),
+                  onPressed: _saveAttendance,
+                ),
+              ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -111,8 +127,11 @@ class _AttendanceMarkingPageState extends State<AttendanceMarkingPage> {
                   },
                 ),
 
-                // Quick Actions
-                _buildQuickActions(),
+                // Quick Actions (only show when not in selection mode)
+                if (!_isSelectionMode) _buildQuickActions(),
+
+                // Selection Actions (only show when in selection mode)
+                if (_isSelectionMode) _buildSelectionActions(),
 
                 // Students List
                 Expanded(
@@ -140,31 +159,45 @@ class _AttendanceMarkingPageState extends State<AttendanceMarkingPage> {
                       }
 
                       return ListView.builder(
-                        padding: EdgeInsets.all(AppConstants.defaultPadding.w),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppConstants.defaultPadding.w,
+                          vertical: 4.h,
+                        ),
                         itemCount: _students.length,
                         itemBuilder: (context, index) {
                           final student = _students[index];
                           final attendanceStatus = _attendanceMap[student.id] ??
                               AttendanceStatus.present;
                           final notes = _notesMap[student.id] ?? '';
+                          final isSelected =
+                              _selectedStudents.contains(student.id);
 
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: 8.h),
-                            child: AttendanceStudentCard(
-                              student: student,
-                              attendanceStatus: attendanceStatus,
-                              notes: notes,
-                              onStatusChanged: (status) {
-                                setState(() {
-                                  _attendanceMap[student.id] = status;
-                                });
-                              },
-                              onNotesChanged: (notes) {
-                                setState(() {
-                                  _notesMap[student.id] = notes;
-                                });
-                              },
-                            ),
+                          return AttendanceStudentCard(
+                            student: student,
+                            attendanceStatus: attendanceStatus,
+                            notes: notes,
+                            isSelected: isSelected,
+                            onStatusChanged: (status) {
+                              setState(() {
+                                _attendanceMap[student.id] = status;
+                              });
+                            },
+                            onNotesChanged: (notes) {
+                              setState(() {
+                                _notesMap[student.id] = notes;
+                              });
+                            },
+                            onSelectionChanged: _isSelectionMode
+                                ? (selected) {
+                                    setState(() {
+                                      if (selected) {
+                                        _selectedStudents.add(student.id);
+                                      } else {
+                                        _selectedStudents.remove(student.id);
+                                      }
+                                    });
+                                  }
+                                : null,
                           );
                         },
                       );
@@ -224,6 +257,93 @@ class _AttendanceMarkingPageState extends State<AttendanceMarkingPage> {
     setState(() {
       for (final student in _students) {
         _attendanceMap[student.id] = AttendanceStatus.absent;
+      }
+    });
+  }
+
+  Widget _buildSelectionActions() {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: AppConstants.defaultPadding.w,
+        vertical: AppConstants.smallPadding.h,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _selectedStudents.isNotEmpty
+                  ? () => _markSelectedPresent()
+                  : null,
+              icon: const Icon(Icons.check_circle),
+              label: const Text('Mark Selected Present'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+              ),
+            ),
+          ),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _selectedStudents.isNotEmpty
+                  ? () => _markSelectedAbsent()
+                  : null,
+              icon: const Icon(Icons.cancel),
+              label: const Text('Mark Selected Absent'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 12.h),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildSelectionModeActions() {
+    return [
+      if (_selectedStudents.isNotEmpty) ...[
+        IconButton(
+          icon: const Icon(Icons.check_circle),
+          onPressed: _markSelectedPresent,
+        ),
+        IconButton(
+          icon: const Icon(Icons.cancel),
+          onPressed: _markSelectedAbsent,
+        ),
+      ],
+    ];
+  }
+
+  void _enterSelectionMode() {
+    setState(() {
+      _isSelectionMode = true;
+      _selectedStudents.clear();
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _isSelectionMode = false;
+      _selectedStudents.clear();
+    });
+  }
+
+  void _markSelectedPresent() {
+    setState(() {
+      for (final studentId in _selectedStudents) {
+        _attendanceMap[studentId] = AttendanceStatus.present;
+      }
+    });
+  }
+
+  void _markSelectedAbsent() {
+    setState(() {
+      for (final studentId in _selectedStudents) {
+        _attendanceMap[studentId] = AttendanceStatus.absent;
       }
     });
   }
