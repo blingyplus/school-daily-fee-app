@@ -76,36 +76,60 @@ class FeeCollectionModel extends FeeCollection {
 
   factory FeeCollectionModel.fromMap(Map<String, dynamic> map) {
     return FeeCollectionModel(
-      id: map['id'] as String,
-      schoolId: map['school_id'] as String,
-      studentId: map['student_id'] as String,
-      collectedBy: map['collected_by'] as String,
+      id: map['id'].toString(),
+      schoolId: map['school_id'].toString(),
+      studentId: map['student_id'].toString(),
+      collectedBy: map['collected_by'].toString(),
       feeType: FeeType.values.firstWhere(
         (e) => e.name == map['fee_type'],
         orElse: () => FeeType.canteen,
       ),
-      amountPaid: (map['amount_paid'] as num).toDouble(),
+      amountPaid: _parseDouble(map['amount_paid']),
       paymentDate:
-          DateTime.fromMillisecondsSinceEpoch(map['payment_date'] as int),
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['payment_date'])),
       coverageStartDate: DateTime.fromMillisecondsSinceEpoch(
-          map['coverage_start_date'] as int),
-      coverageEndDate:
-          DateTime.fromMillisecondsSinceEpoch(map['coverage_end_date'] as int),
+          _parseInt(map['coverage_start_date'])),
+      coverageEndDate: DateTime.fromMillisecondsSinceEpoch(
+          _parseInt(map['coverage_end_date'])),
       paymentMethod: PaymentMethod.values.firstWhere(
         (e) => e.name == map['payment_method'],
         orElse: () => PaymentMethod.cash,
       ),
-      receiptNumber: map['receipt_number'] as String,
-      notes: map['notes'] as String?,
+      receiptNumber: map['receipt_number'].toString(),
+      notes: map['notes']?.toString(),
       collectedAt:
-          DateTime.fromMillisecondsSinceEpoch(map['collected_at'] as int),
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['collected_at'])),
       syncedAt: map['synced_at'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['synced_at'] as int)
+          ? DateTime.fromMillisecondsSinceEpoch(_parseInt(map['synced_at']))
           : null,
-      syncStatus: map['sync_status'] as String,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
+      syncStatus: map['sync_status'].toString(),
+      createdAt:
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['created_at'])),
+      updatedAt:
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['updated_at'])),
     );
+  }
+
+  /// Helper method to safely parse integer values from database
+  static int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    if (value is double) return value.toInt();
+    return 0;
+  }
+
+  /// Helper method to safely parse double values from database
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
   }
 
   Map<String, dynamic> toMap() {

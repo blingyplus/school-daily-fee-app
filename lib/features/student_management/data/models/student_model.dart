@@ -70,26 +70,39 @@ class StudentModel extends Student {
 
   factory StudentModel.fromMap(Map<String, dynamic> map) {
     return StudentModel(
-      id: map['id'] as String,
-      schoolId: map['school_id'] as String,
-      classId: map['class_id'] as String,
-      studentId: map['student_id'] as String,
-      firstName: map['first_name'] as String,
-      lastName: map['last_name'] as String,
+      id: map['id'].toString(),
+      schoolId: map['school_id'].toString(),
+      classId: map['class_id'].toString(),
+      studentId: map['student_id'].toString(),
+      firstName: map['first_name'].toString(),
+      lastName: map['last_name'].toString(),
       dateOfBirth: map['date_of_birth'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['date_of_birth'] as int)
+          ? DateTime.fromMillisecondsSinceEpoch(_parseInt(map['date_of_birth']))
           : null,
-      photoUrl: map['photo_url'] as String?,
-      parentPhone: map['parent_phone'] as String?,
-      parentEmail: map['parent_email'] as String?,
-      address: map['address'] as String?,
-      isActive: (map['is_active'] as int) == 1,
+      photoUrl: map['photo_url']?.toString(),
+      parentPhone: map['parent_phone']?.toString(),
+      parentEmail: map['parent_email']?.toString(),
+      address: map['address']?.toString(),
+      isActive: _parseInt(map['is_active']) == 1,
       enrolledAt: map['enrolled_at'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['enrolled_at'] as int)
+          ? DateTime.fromMillisecondsSinceEpoch(_parseInt(map['enrolled_at']))
           : null,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
+      createdAt:
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['created_at'])),
+      updatedAt:
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['updated_at'])),
     );
+  }
+
+  /// Helper method to safely parse integer values from database
+  static int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    if (value is double) return value.toInt();
+    return 0;
   }
 
   Map<String, dynamic> toMap() {

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get_it/get_it.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/navigation/app_router.dart';
 import '../../../../core/sync/sync_engine.dart';
+import '../../../../core/services/onboarding_service.dart';
+import '../../../../shared/data/datasources/local/database_helper.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
@@ -23,23 +26,82 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageState extends State<DashboardPage>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   bool _isSyncing = false;
   SyncResult? _lastSyncResult;
+  String? _userId;
+  String? _schoolId;
+  String? _userRole;
+  late AnimationController _rotationController;
 
-  final List<Widget> _pages = [
-    const DashboardHomePage(),
-    const StudentsPage(),
-    const AttendancePage(),
-    const FeeCollectionTab(),
-    const ReportsPage(),
-  ];
+  List<Widget> get _pages => [
+        DashboardHomePage(
+            userId: _userId, schoolId: _schoolId, userRole: _userRole),
+        StudentsPage(userId: _userId, schoolId: _schoolId, userRole: _userRole),
+        AttendancePage(
+            userId: _userId, schoolId: _schoolId, userRole: _userRole),
+        FeeCollectionTab(
+            userId: _userId, schoolId: _schoolId, userRole: _userRole),
+        ReportsPage(userId: _userId, schoolId: _schoolId, userRole: _userRole),
+      ];
 
   @override
   void initState() {
     super.initState();
+    _rotationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
     _listenToSyncStatus();
+    _loadUserContext();
+  }
+
+  @override
+  void dispose() {
+    _rotationController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserContext() async {
+    try {
+      final onboardingService = GetIt.instance<OnboardingService>();
+
+      // Get current user from auth state
+      final authState = context.read<AuthBloc>().state;
+      if (authState is AuthAuthenticated) {
+        _userId = authState.user.id;
+
+        // Get school and role information
+        _schoolId = await onboardingService.getUserSchool(_userId!);
+        _userRole = await onboardingService.getUserRole(_userId!);
+
+        if (mounted) {
+          setState(() {});
+        }
+
+        print('✅ Dashboard loaded with context:');
+        print('   User ID: $_userId');
+        print('   School ID: $_schoolId');
+        print('   User Role: $_userRole');
+
+        // Trigger initial sync after loading context
+        _triggerManualSync();
+      }
+    } catch (e) {
+      print('❌ Error loading user context: $e');
+    }
+  }
+
+  Future<void> _triggerManualSync() async {
+    try {
+      final syncEngine = GetIt.instance<SyncEngine>();
+      print('🔄 Triggering manual sync from dashboard...');
+      await syncEngine.sync(SyncDirection.bidirectional);
+    } catch (e) {
+      print('❌ Error triggering manual sync: $e');
+    }
   }
 
   void _listenToSyncStatus() {
@@ -48,10 +110,29 @@ class _DashboardPageState extends State<DashboardPage> {
       if (mounted) {
         setState(() {
           _isSyncing = result.status == SyncStatus.syncing;
-          if (result.status != SyncStatus.syncing) {
+
+          if (result.status == SyncStatus.syncing) {
+            // Start spinning animation
+            _rotationController.repeat();
+
+            // Show "Syncing..." banner temporarily (1 second)
             _lastSyncResult = result;
-            // Clear the result after 5 seconds
-            Future.delayed(const Duration(seconds: 5), () {
+            Future.delayed(const Duration(seconds: 1), () {
+              if (mounted && _isSyncing) {
+                setState(() {
+                  _lastSyncResult = null; // Hide banner while still syncing
+                });
+              }
+            });
+          } else {
+            // Stop spinning animation
+            _rotationController.stop();
+            _rotationController.reset();
+
+            // Show result (success/error) banner
+            _lastSyncResult = result;
+            // Clear the result after 3 seconds
+            Future.delayed(const Duration(seconds: 3), () {
               if (mounted) {
                 setState(() {
                   _lastSyncResult = null;
@@ -88,25 +169,25 @@ class _DashboardPageState extends State<DashboardPage> {
           backgroundColor: Theme.of(context).colorScheme.background,
           elevation: 0,
           actions: [
-            // Smart Sync Button - Handles everything intelligently with spinning animation
-            IconButton(
-              icon: _isSyncing
-                  ? SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    )
-                  : Icon(
+            // Smart Sync Button - Icon spins during sync
+            AnimatedBuilder(
+              animation: _isSyncing
+                  ? _rotationController
+                  : const AlwaysStoppedAnimation(0),
+              builder: (context, child) {
+                return Transform.rotate(
+                  angle:
+                      _isSyncing ? _rotationController.value * 2 * 3.14159 : 0,
+                  child: IconButton(
+                    icon: Icon(
                       Icons.cloud_sync,
                       color: Theme.of(context).colorScheme.primary,
                     ),
-              onPressed: _isSyncing ? null : () => _smartSync(context),
-              tooltip: _isSyncing ? 'Syncing...' : 'Smart Sync',
+                    onPressed: _isSyncing ? null : () => _smartSync(context),
+                    tooltip: _isSyncing ? 'Syncing...' : 'Smart Sync',
+                  ),
+                );
+              },
             ),
             // Advanced Options Menu
             PopupMenuButton<String>(
@@ -233,31 +314,45 @@ class _DashboardPageState extends State<DashboardPage> {
     String message;
     Color textColor;
 
-    if (_isSyncing) {
-      backgroundColor = Colors.blue.shade50;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    if (_isSyncing && _lastSyncResult?.status == SyncStatus.syncing) {
+      // Only show syncing banner if we have a syncing result (first 1 second)
+      backgroundColor = isDarkMode
+          ? Colors.blue.shade900.withOpacity(0.3)
+          : Colors.blue.shade50;
       icon = Icons.sync;
       message = 'Syncing data...';
-      textColor = Colors.blue.shade900;
-    } else if (_lastSyncResult != null) {
+      textColor = isDarkMode ? Colors.blue.shade200 : Colors.blue.shade900;
+    } else if (_lastSyncResult != null &&
+        _lastSyncResult!.status != SyncStatus.syncing) {
       switch (_lastSyncResult!.status) {
         case SyncStatus.success:
-          backgroundColor = Colors.green.shade50;
+          backgroundColor = isDarkMode
+              ? Colors.green.shade900.withOpacity(0.3)
+              : Colors.green.shade50;
           icon = Icons.check_circle;
           message =
               'Sync complete! ${_lastSyncResult!.recordsProcessed ?? 0} new records processed.';
-          textColor = Colors.green.shade900;
+          textColor =
+              isDarkMode ? Colors.green.shade200 : Colors.green.shade900;
           break;
         case SyncStatus.failed:
-          backgroundColor = Colors.red.shade50;
+          backgroundColor = isDarkMode
+              ? Colors.red.shade900.withOpacity(0.3)
+              : Colors.red.shade50;
           icon = Icons.error;
           message = 'Sync failed: ${_lastSyncResult!.message}';
-          textColor = Colors.red.shade900;
+          textColor = isDarkMode ? Colors.red.shade200 : Colors.red.shade900;
           break;
         default:
-          backgroundColor = Colors.orange.shade50;
+          backgroundColor = isDarkMode
+              ? Colors.orange.shade900.withOpacity(0.3)
+              : Colors.orange.shade50;
           icon = Icons.warning;
           message = _lastSyncResult!.message ?? 'Sync status unknown';
-          textColor = Colors.orange.shade900;
+          textColor =
+              isDarkMode ? Colors.orange.shade200 : Colors.orange.shade900;
       }
     } else {
       return const SizedBox.shrink();
@@ -279,17 +374,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       child: Row(
         children: [
-          if (_isSyncing)
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(textColor),
-              ),
-            )
-          else
-            Icon(icon, color: textColor, size: 20),
+          Icon(icon, color: textColor, size: 20),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
@@ -301,7 +386,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ),
           ),
-          if (!_isSyncing && _lastSyncResult != null)
+          if (_lastSyncResult != null)
             IconButton(
               icon: Icon(Icons.close, color: textColor, size: 18),
               onPressed: () {
@@ -311,6 +396,7 @@ class _DashboardPageState extends State<DashboardPage> {
               },
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
+              tooltip: 'Dismiss',
             ),
         ],
       ),
@@ -446,7 +532,7 @@ class _DashboardPageState extends State<DashboardPage> {
             content: const Text(
                 '✅ Sync reset complete. Now tap Smart Sync to upload all data.'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 3),
             action: SnackBarAction(
               label: 'Sync Now',
               textColor: Colors.white,
@@ -522,60 +608,6 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _triggerManualSync(BuildContext context) async {
-    try {
-      print('🔄 Manual sync triggered from dashboard');
-      final syncEngine = GetIt.instance<SyncEngine>();
-
-      // Show loading dialog
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const AlertDialog(
-          content: Row(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(width: 16),
-              Text('Syncing data...'),
-            ],
-          ),
-        ),
-      );
-
-      // Trigger sync
-      final result = await syncEngine.sync(SyncDirection.upload);
-
-      // Close loading dialog
-      if (context.mounted) {
-        Navigator.of(context).pop();
-
-        // Show result
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              result.status == SyncStatus.success
-                  ? 'Sync completed successfully! ${result.recordsProcessed} records processed.'
-                  : 'Sync failed: ${result.message}',
-            ),
-            backgroundColor:
-                result.status == SyncStatus.success ? Colors.green : Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      print('❌ Manual sync failed: $e');
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Sync failed: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -602,8 +634,214 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-class DashboardHomePage extends StatelessWidget {
-  const DashboardHomePage({super.key});
+class DashboardHomePage extends StatefulWidget {
+  final String? userId;
+  final String? schoolId;
+  final String? userRole;
+
+  const DashboardHomePage({
+    super.key,
+    this.userId,
+    this.schoolId,
+    this.userRole,
+  });
+
+  @override
+  State<DashboardHomePage> createState() => _DashboardHomePageState();
+}
+
+class _DashboardHomePageState extends State<DashboardHomePage> {
+  int _totalStudents = 0;
+  int _presentToday = 0;
+  double _totalFeesCollected = 0.0;
+  int _attendanceRate = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+    _listenToSyncUpdates();
+  }
+
+  void _listenToSyncUpdates() {
+    // Listen to sync status changes to refresh data
+    final syncEngine = GetIt.instance<SyncEngine>();
+    syncEngine.syncStream.listen((result) {
+      if (result.status == SyncStatus.success && mounted) {
+        // Refresh dashboard data after successful sync
+        _loadDashboardData();
+      }
+    });
+  }
+
+  Future<void> _loadDashboardData() async {
+    if (widget.schoolId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final database = GetIt.instance<Database>();
+
+      // Load student count
+      final studentResults = await database.query(
+        DatabaseHelper.tableStudents,
+        where: 'school_id = ? AND is_active = ?',
+        whereArgs: [widget.schoolId, 1],
+      );
+      _totalStudents = studentResults.length;
+
+      // Load today's attendance
+      final today = DateTime.now();
+      final startOfDay =
+          DateTime(today.year, today.month, today.day).millisecondsSinceEpoch;
+      final endOfDay = startOfDay + (24 * 60 * 60 * 1000) - 1;
+
+      final attendanceResults = await database.query(
+        DatabaseHelper.tableAttendanceRecords,
+        where:
+            'school_id = ? AND attendance_date >= ? AND attendance_date <= ? AND status = ?',
+        whereArgs: [widget.schoolId, startOfDay, endOfDay, 'present'],
+      );
+      _presentToday = attendanceResults.length;
+
+      // Load total fees collected this month
+      final monthStart =
+          DateTime(today.year, today.month, 1).millisecondsSinceEpoch;
+      final monthEnd =
+          DateTime(today.year, today.month + 1, 0).millisecondsSinceEpoch;
+
+      final feeResults = await database.rawQuery(
+        'SELECT SUM(amount_paid) as total FROM ${DatabaseHelper.tableFeeCollections} WHERE school_id = ? AND payment_date >= ? AND payment_date <= ?',
+        [widget.schoolId, monthStart, monthEnd],
+      );
+
+      _totalFeesCollected = (feeResults.first['total'] as double?) ?? 0.0;
+
+      // Calculate attendance rate
+      if (_totalStudents > 0) {
+        _attendanceRate = ((_presentToday / _totalStudents) * 100).round();
+      }
+
+      setState(() => _isLoading = false);
+
+      print('✅ Dashboard data loaded:');
+      print('   Total Students: $_totalStudents');
+      print('   Present Today: $_presentToday');
+      print('   Total Fees: $_totalFeesCollected');
+      print('   Attendance Rate: $_attendanceRate%');
+    } catch (e) {
+      print('❌ Error loading dashboard data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadRecentActivity() async {
+    if (widget.schoolId == null) return [];
+
+    try {
+      final database = GetIt.instance<Database>();
+      final activities = <Map<String, dynamic>>[];
+
+      // Get recent fee collections (last 5)
+      final recentFees = await database.query(
+        DatabaseHelper.tableFeeCollections,
+        where: 'school_id = ?',
+        whereArgs: [widget.schoolId],
+        orderBy: 'collected_at DESC',
+        limit: 5,
+      );
+
+      for (final fee in recentFees) {
+        // Get student name
+        final student = await database.query(
+          DatabaseHelper.tableStudents,
+          where: 'id = ?',
+          whereArgs: [fee['student_id']],
+          limit: 1,
+        );
+
+        if (student.isNotEmpty) {
+          final studentName =
+              '${student.first['first_name']} ${student.first['last_name']}';
+          final feeType = fee['fee_type'] as String;
+          final amount = fee['amount_paid'] as double;
+          final timestamp = fee['collected_at'] as int;
+
+          activities.add({
+            'title':
+                '$studentName paid $feeType fee (₹${amount.toStringAsFixed(0)})',
+            'time': _formatTimeAgo(timestamp),
+            'icon': Icons.payment,
+            'color': Colors.green,
+            'timestamp': timestamp,
+          });
+        }
+      }
+
+      // Get recent attendance records (last 5)
+      final recentAttendance = await database.query(
+        DatabaseHelper.tableAttendanceRecords,
+        where: 'school_id = ? AND status = ?',
+        whereArgs: [widget.schoolId, 'present'],
+        orderBy: 'recorded_at DESC',
+        limit: 5,
+      );
+
+      for (final attendance in recentAttendance) {
+        // Get student name
+        final student = await database.query(
+          DatabaseHelper.tableStudents,
+          where: 'id = ?',
+          whereArgs: [attendance['student_id']],
+          limit: 1,
+        );
+
+        if (student.isNotEmpty) {
+          final studentName =
+              '${student.first['first_name']} ${student.first['last_name']}';
+          final timestamp = attendance['recorded_at'] as int;
+
+          activities.add({
+            'title': '$studentName marked present',
+            'time': _formatTimeAgo(timestamp),
+            'icon': Icons.check_circle,
+            'color': Colors.blue,
+            'timestamp': timestamp,
+          });
+        }
+      }
+
+      // Sort all activities by timestamp (most recent first)
+      activities.sort(
+          (a, b) => (b['timestamp'] as int).compareTo(a['timestamp'] as int));
+
+      // Return only the 5 most recent activities
+      return activities.take(5).toList();
+    } catch (e) {
+      print('❌ Error loading recent activity: $e');
+      return [];
+    }
+  }
+
+  String _formatTimeAgo(int timestamp) {
+    final now = DateTime.now();
+    final activityTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final difference = now.difference(activityTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} minutes ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${activityTime.day}/${activityTime.month}/${activityTime.year}';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -634,51 +872,88 @@ class DashboardHomePage extends StatelessWidget {
               ),
         ),
         SizedBox(height: 16.h),
+        if (_isLoading)
+          _buildLoadingStats(context)
+        else
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Total Students',
+                      '$_totalStudents',
+                      Icons.people,
+                      Colors.blue,
+                    ),
+                  ),
+                  SizedBox(width: 16.w),
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Present Today',
+                      '$_presentToday',
+                      Icons.check_circle,
+                      Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16.h),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Fees Collected',
+                      '₵${_totalFeesCollected.toStringAsFixed(0)}',
+                      Icons.payment,
+                      Colors.orange,
+                    ),
+                  ),
+                  SizedBox(width: 16.w),
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Attendance',
+                      '$_attendanceRate%',
+                      Icons.trending_up,
+                      Colors.purple,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLoadingStats(BuildContext context) {
+    return Column(
+      children: [
         Row(
           children: [
             Expanded(
-              child: _buildStatCard(
-                context,
-                'Total Students',
-                '156',
-                Icons.people,
-                Colors.blue,
-              ),
-            ),
+                child: _buildStatCard(context, 'Total Students', '...',
+                    Icons.people, Colors.blue)),
             SizedBox(width: 16.w),
             Expanded(
-              child: _buildStatCard(
-                context,
-                'Present Today',
-                '142',
-                Icons.check_circle,
-                Colors.green,
-              ),
-            ),
+                child: _buildStatCard(context, 'Present Today', '...',
+                    Icons.check_circle, Colors.green)),
           ],
         ),
         SizedBox(height: 16.h),
         Row(
           children: [
             Expanded(
-              child: _buildStatCard(
-                context,
-                'Fees Collected',
-                '₵2,340',
-                Icons.payment,
-                Colors.orange,
-              ),
-            ),
+                child: _buildStatCard(context, 'Fees Collected', '...',
+                    Icons.payment, Colors.orange)),
             SizedBox(width: 16.w),
             Expanded(
-              child: _buildStatCard(
-                context,
-                'Pending Fees',
-                '₵890',
-                Icons.pending,
-                Colors.red,
-              ),
-            ),
+                child: _buildStatCard(context, 'Attendance', '...',
+                    Icons.trending_up, Colors.purple)),
           ],
         ),
       ],
@@ -859,46 +1134,86 @@ class DashboardHomePage extends StatelessWidget {
               ),
         ),
         SizedBox(height: 16.h),
-        Container(
-          padding: EdgeInsets.all(16.w),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(12.r),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
-            ),
-          ),
-          child: Column(
-            children: [
-              _buildActivityItem(
-                context,
-                'John Doe paid canteen fee',
-                '2 minutes ago',
-                Icons.payment,
-                Colors.green,
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: _loadRecentActivity(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Container(
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                    color:
+                        Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            final activities = snapshot.data ?? [];
+
+            if (activities.isEmpty) {
+              return Container(
+                padding: EdgeInsets.all(16.w),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(
+                    color:
+                        Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    'No recent activity',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              );
+            }
+
+            return Container(
+              padding: EdgeInsets.all(16.w),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12.r),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                ),
               ),
-              Divider(
-                  color:
-                      Theme.of(context).colorScheme.outline.withOpacity(0.2)),
-              _buildActivityItem(
-                context,
-                'Mary Smith marked present',
-                '5 minutes ago',
-                Icons.check_circle,
-                Colors.blue,
+              child: Column(
+                children: activities.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final activity = entry.value;
+
+                  return Column(
+                    children: [
+                      _buildActivityItem(
+                        context,
+                        activity['title'] as String,
+                        activity['time'] as String,
+                        activity['icon'] as IconData,
+                        activity['color'] as Color,
+                      ),
+                      if (index < activities.length - 1)
+                        Divider(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outline
+                              .withOpacity(0.2),
+                        ),
+                    ],
+                  );
+                }).toList(),
               ),
-              Divider(
-                  color:
-                      Theme.of(context).colorScheme.outline.withOpacity(0.2)),
-              _buildActivityItem(
-                context,
-                'New student registered',
-                '10 minutes ago',
-                Icons.person_add,
-                Colors.orange,
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ],
     );
@@ -955,52 +1270,97 @@ class DashboardHomePage extends StatelessWidget {
 
 // Students page with actual implementation
 class StudentsPage extends StatelessWidget {
-  const StudentsPage({super.key});
+  final String? userId;
+  final String? schoolId;
+  final String? userRole;
+
+  const StudentsPage({
+    super.key,
+    this.userId,
+    this.schoolId,
+    this.userRole,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Get schoolId from auth state
-    const schoolId = 'temp-school-id'; // This should come from auth state
+    if (schoolId == null) {
+      return const Center(
+        child: Text('Loading school information...'),
+      );
+    }
 
     return BlocProvider.value(
       value: GetIt.instance<StudentBloc>(),
-      child: const StudentsListPage(schoolId: schoolId),
+      child: StudentsListPage(schoolId: schoolId!),
     );
   }
 }
 
 class AttendancePage extends StatelessWidget {
-  const AttendancePage({super.key});
+  final String? userId;
+  final String? schoolId;
+  final String? userRole;
+
+  const AttendancePage({
+    super.key,
+    this.userId,
+    this.schoolId,
+    this.userRole,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Get schoolId from auth state
-    const schoolId = 'temp-school-id'; // This should come from auth state
+    if (schoolId == null) {
+      return const Center(
+        child: Text('Loading school information...'),
+      );
+    }
 
     return BlocProvider.value(
       value: GetIt.instance<AttendanceBloc>(),
-      child: const ClassSelectionPage(schoolId: schoolId),
+      child: ClassSelectionPage(schoolId: schoolId!),
     );
   }
 }
 
 class FeeCollectionTab extends StatelessWidget {
-  const FeeCollectionTab({super.key});
+  final String? userId;
+  final String? schoolId;
+  final String? userRole;
+
+  const FeeCollectionTab({
+    super.key,
+    this.userId,
+    this.schoolId,
+    this.userRole,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Get schoolId from auth state
-    const schoolId = 'temp-school-id'; // This should come from auth state
+    if (schoolId == null) {
+      return const Center(
+        child: Text('Loading school information...'),
+      );
+    }
 
     return BlocProvider.value(
       value: GetIt.instance<FeeCollectionBloc>(),
-      child: const FeeCollectionPage(schoolId: schoolId),
+      child: FeeCollectionPage(schoolId: schoolId!),
     );
   }
 }
 
 class ReportsPage extends StatelessWidget {
-  const ReportsPage({super.key});
+  final String? userId;
+  final String? schoolId;
+  final String? userRole;
+
+  const ReportsPage({
+    super.key,
+    this.userId,
+    this.schoolId,
+    this.userRole,
+  });
 
   @override
   Widget build(BuildContext context) {

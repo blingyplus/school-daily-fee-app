@@ -64,27 +64,40 @@ class AttendanceRecordModel extends AttendanceRecord {
 
   factory AttendanceRecordModel.fromMap(Map<String, dynamic> map) {
     return AttendanceRecordModel(
-      id: map['id'] as String,
-      schoolId: map['school_id'] as String,
-      studentId: map['student_id'] as String,
-      classId: map['class_id'] as String,
-      recordedBy: map['recorded_by'] as String,
-      attendanceDate:
-          DateTime.fromMillisecondsSinceEpoch(map['attendance_date'] as int),
+      id: map['id'].toString(),
+      schoolId: map['school_id'].toString(),
+      studentId: map['student_id'].toString(),
+      classId: map['class_id'].toString(),
+      recordedBy: map['recorded_by'].toString(),
+      attendanceDate: DateTime.fromMillisecondsSinceEpoch(
+          _parseInt(map['attendance_date'])),
       status: AttendanceStatus.values.firstWhere(
         (e) => e.name == map['status'],
         orElse: () => AttendanceStatus.present,
       ),
-      notes: map['notes'] as String?,
+      notes: map['notes']?.toString(),
       recordedAt:
-          DateTime.fromMillisecondsSinceEpoch(map['recorded_at'] as int),
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['recorded_at'])),
       syncedAt: map['synced_at'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(map['synced_at'] as int)
+          ? DateTime.fromMillisecondsSinceEpoch(_parseInt(map['synced_at']))
           : null,
-      syncStatus: map['sync_status'] as String,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
+      syncStatus: map['sync_status'].toString(),
+      createdAt:
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['created_at'])),
+      updatedAt:
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['updated_at'])),
     );
+  }
+
+  /// Helper method to safely parse integer values from database
+  static int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    if (value is double) return value.toInt();
+    return 0;
   }
 
   Map<String, dynamic> toMap() {

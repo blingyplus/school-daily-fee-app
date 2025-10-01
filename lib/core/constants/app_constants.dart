@@ -36,7 +36,7 @@ class AppConstants {
 
   // Currency
   static const String defaultCurrency = 'INR';
-  static const String currencySymbol = '₹';
+  static const String currencySymbol = '₵';
 
   // Sync Status
   static const String syncStatusPending = 'pending';

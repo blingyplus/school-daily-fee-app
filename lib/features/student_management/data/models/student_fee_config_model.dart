@@ -52,16 +52,40 @@ class StudentFeeConfigModel extends StudentFeeConfig {
 
   factory StudentFeeConfigModel.fromMap(Map<String, dynamic> map) {
     return StudentFeeConfigModel(
-      id: map['id'] as String,
-      studentId: map['student_id'] as String,
-      canteenDailyFee: (map['canteen_daily_fee'] as num).toDouble(),
-      transportDailyFee: (map['transport_daily_fee'] as num).toDouble(),
-      transportLocation: map['transport_location'] as String?,
-      canteenEnabled: (map['canteen_enabled'] as int) == 1,
-      transportEnabled: (map['transport_enabled'] as int) == 1,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at'] as int),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at'] as int),
+      id: map['id'].toString(),
+      studentId: map['student_id'].toString(),
+      canteenDailyFee: _parseDouble(map['canteen_daily_fee']),
+      transportDailyFee: _parseDouble(map['transport_daily_fee']),
+      transportLocation: map['transport_location']?.toString(),
+      canteenEnabled: _parseInt(map['canteen_enabled']) == 1,
+      transportEnabled: _parseInt(map['transport_enabled']) == 1,
+      createdAt:
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['created_at'])),
+      updatedAt:
+          DateTime.fromMillisecondsSinceEpoch(_parseInt(map['updated_at'])),
     );
+  }
+
+  /// Helper method to safely parse integer values from database
+  static int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    if (value is double) return value.toInt();
+    return 0;
+  }
+
+  /// Helper method to safely parse double values from database
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
   }
 
   Map<String, dynamic> toMap() {
