@@ -13,6 +13,7 @@ import '../bloc/auth_bloc.dart';
 import '../bloc/auth_event.dart';
 import '../bloc/auth_state.dart';
 import '../../../student_management/presentation/pages/students_list_page.dart';
+import '../../../student_management/presentation/pages/add_student_page.dart';
 import '../../../student_management/presentation/bloc/student_bloc.dart';
 import '../../../attendance/presentation/pages/class_selection_page.dart';
 import '../../../attendance/presentation/bloc/attendance_bloc.dart';
@@ -38,7 +39,14 @@ class _DashboardPageState extends State<DashboardPage>
 
   List<Widget> get _pages => [
         DashboardHomePage(
-            userId: _userId, schoolId: _schoolId, userRole: _userRole),
+            userId: _userId,
+            schoolId: _schoolId,
+            userRole: _userRole,
+            onTabChange: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            }),
         StudentsPage(userId: _userId, schoolId: _schoolId, userRole: _userRole),
         AttendancePage(
             userId: _userId, schoolId: _schoolId, userRole: _userRole),
@@ -173,147 +181,197 @@ class _DashboardPageState extends State<DashboardPage>
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        if (state is AuthUnauthenticated) {
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            AppRouter.login,
-            (route) => false,
-          );
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (bool didPop) async {
+        if (didPop) return;
+
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
         }
       },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            _getAppBarTitle(),
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthUnauthenticated) {
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRouter.login,
+              (route) => false,
+            );
+          }
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(
+              _getAppBarTitle(),
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.background,
+            elevation: 0,
+            actions: [
+              // Smart Sync Button - Icon spins during sync
+              AnimatedBuilder(
+                animation: _isSyncing
+                    ? _rotationController
+                    : const AlwaysStoppedAnimation(0),
+                builder: (context, child) {
+                  return Transform.rotate(
+                    angle: _isSyncing
+                        ? _rotationController.value * 2 * 3.14159
+                        : 0,
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.cloud_sync,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      onPressed: _isSyncing ? null : () => _smartSync(context),
+                      tooltip: _isSyncing ? 'Syncing...' : 'Smart Sync',
+                    ),
+                  );
+                },
+              ),
+              // Advanced Options Menu
+              PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
-          ),
-          backgroundColor: Theme.of(context).colorScheme.background,
-          elevation: 0,
-          actions: [
-            // Smart Sync Button - Icon spins during sync
-            AnimatedBuilder(
-              animation: _isSyncing
-                  ? _rotationController
-                  : const AlwaysStoppedAnimation(0),
-              builder: (context, child) {
-                return Transform.rotate(
-                  angle:
-                      _isSyncing ? _rotationController.value * 2 * 3.14159 : 0,
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.cloud_sync,
-                      color: Theme.of(context).colorScheme.primary,
+                tooltip: 'More Options',
+                onSelected: (value) {
+                  switch (value) {
+                    case 'debug':
+                      _debugDatabaseState(context);
+                      break;
+                    case 'reset_all':
+                      _resetAllSyncRecords(context);
+                      break;
+                    case 'logout':
+                      _showLogoutDialog(context);
+                      break;
+                  }
+                },
+                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    value: 'debug',
+                    child: Row(
+                      children: [
+                        Icon(Icons.bug_report, color: Colors.blue),
+                        SizedBox(width: 8),
+                        Text('Debug Database'),
+                      ],
                     ),
-                    onPressed: _isSyncing ? null : () => _smartSync(context),
-                    tooltip: _isSyncing ? 'Syncing...' : 'Smart Sync',
                   ),
-                );
-              },
-            ),
-            // Advanced Options Menu
-            PopupMenuButton<String>(
-              icon: Icon(
-                Icons.more_vert,
-                color: Theme.of(context).colorScheme.onSurface,
+                  const PopupMenuItem<String>(
+                    value: 'reset_all',
+                    child: Row(
+                      children: [
+                        Icon(Icons.refresh, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text('Reset Sync (DB Cleared)'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(
+                    value: 'logout',
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: Colors.red),
+                        SizedBox(width: 8),
+                        Text('Logout'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              tooltip: 'More Options',
-              onSelected: (value) {
-                switch (value) {
-                  case 'debug':
-                    _debugDatabaseState(context);
-                    break;
-                  case 'reset_all':
-                    _resetAllSyncRecords(context);
-                    break;
-                  case 'logout':
-                    _showLogoutDialog(context);
-                    break;
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
-                  value: 'debug',
-                  child: Row(
-                    children: [
-                      Icon(Icons.bug_report, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('Debug Database'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'reset_all',
-                  child: Row(
-                    children: [
-                      Icon(Icons.refresh, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Text('Reset Sync (DB Cleared)'),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-                const PopupMenuItem<String>(
-                  value: 'logout',
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Logout'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            // Sync Status Banner
-            if (_isSyncing || _lastSyncResult != null)
-              _buildSyncBanner(context),
-            // Main content
-            Expanded(child: _pages[_selectedIndex]),
-          ],
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
-          },
-          selectedItemColor: Theme.of(context).colorScheme.primary,
-          unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people),
-              label: 'Students',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.check_circle),
-              label: 'Attendance',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.payment),
-              label: 'Fees',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.analytics),
-              label: 'Reports',
-            ),
-          ],
+            ],
+          ),
+          body: Column(
+            children: [
+              // Sync Status Banner
+              if (_isSyncing || _lastSyncResult != null)
+                _buildSyncBanner(context),
+              // Main content
+              Expanded(child: _pages[_selectedIndex]),
+            ],
+          ),
+          bottomNavigationBar: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: _selectedIndex,
+            onTap: (index) {
+              setState(() {
+                _selectedIndex = index;
+              });
+            },
+            selectedItemColor: Theme.of(context).colorScheme.primary,
+            unselectedItemColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard),
+                label: 'Dashboard',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.people),
+                label: 'Students',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.check_circle),
+                label: 'Attendance',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.payment),
+                label: 'Fees',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.analytics),
+                label: 'Reports',
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Future<bool> _onWillPop() async {
+    // If not on the dashboard home tab, navigate to it first
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+      return false; // Don't exit the app
+    }
+
+    // If on dashboard home tab, show exit confirmation dialog
+    return await _showExitConfirmationDialog() ?? false;
+  }
+
+  Future<bool?> _showExitConfirmationDialog() async {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Exit App'),
+          content: const Text('Are you sure you want to exit Skuupay?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: const Text('Exit'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -664,12 +722,14 @@ class DashboardHomePage extends StatefulWidget {
   final String? userId;
   final String? schoolId;
   final String? userRole;
+  final Function(int)? onTabChange;
 
   const DashboardHomePage({
     super.key,
     this.userId,
     this.schoolId,
     this.userRole,
+    this.onTabChange,
   });
 
   @override
@@ -810,7 +870,7 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
 
           activities.add({
             'title':
-                '$studentName paid $feeType fee (₹${amount.toStringAsFixed(0)})',
+                '$studentName paid $feeType fee (₵${amount.toStringAsFixed(0)})',
             'time': _formatTimeAgo(timestamp),
             'icon': Icons.payment,
             'color': Colors.green,
@@ -1109,7 +1169,8 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
                 'Mark Attendance',
                 Icons.check_circle_outline,
                 () {
-                  Navigator.pushNamed(context, AppRouter.attendance);
+                  // Switch to Attendance tab (index 2)
+                  widget.onTabChange?.call(2);
                 },
               ),
             ),
@@ -1120,7 +1181,8 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
                 'Collect Fees',
                 Icons.payment,
                 () {
-                  Navigator.pushNamed(context, AppRouter.feeCollection);
+                  // Switch to Fees tab (index 3)
+                  widget.onTabChange?.call(3);
                 },
               ),
             ),
@@ -1135,7 +1197,17 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
                 'Add Student',
                 Icons.person_add,
                 () {
-                  Navigator.pushNamed(context, AppRouter.studentsList);
+                  // Open Add Student form
+                  if (widget.schoolId != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => AddStudentPage(
+                          schoolId: widget.schoolId!,
+                        ),
+                      ),
+                    );
+                  }
                 },
               ),
             ),
@@ -1146,7 +1218,8 @@ class _DashboardHomePageState extends State<DashboardHomePage> {
                 'View Reports',
                 Icons.analytics,
                 () {
-                  Navigator.pushNamed(context, AppRouter.reports);
+                  // Switch to Reports tab (index 4)
+                  widget.onTabChange?.call(4);
                 },
               ),
             ),
